@@ -7,6 +7,7 @@ from machine import UART
 import neopixel
 from collections import namedtuple
 from collections import OrderedDict
+import network
 
 
 #globals
@@ -38,7 +39,19 @@ def mainLoop(timer):
 def loopLEDs():
     for key, val in d.items():
         val.toggle()
-        print("toggle:" + key)
+        
     
+def connect():
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
+    wlan.scan()
+    # connect to a WiFi network
+    wlan.connect("BOOBERFRAGGLE", "Womble123")
+    # check the connection status
+    if wlan.isconnected():
+        print("Connected to WiFi network")
+    else:
+        print("Unable to connect to WiFi network")
 
-t.init(freq=5000, mode=Timer.PERIODIC, callback=mainLoop)
+connect()
+t.init(freq=20000, mode=Timer.PERIODIC, callback=mainLoop)

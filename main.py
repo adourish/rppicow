@@ -8,7 +8,11 @@ import neopixel
 from collections import namedtuple
 from collections import OrderedDict
 import network
-
+import urequests
+from PIL import Image
+import textwrap
+import network
+import socket
 
 #globals
 d = OrderedDict()
@@ -40,7 +44,37 @@ def loopLEDs():
     for key, val in d.items():
         val.toggle()
         
-    
+def getASCII(url):
+# download the image from a URL
+response = urequests.get("https://static.wikia.nocookie.net/wombles/images/c/c5/Great_uncle_bulgaria_1990s.jpg")
+
+# open the image using the PIL library
+im = Image.open(response.raw)
+
+# resize the image to a smaller size
+im = im.resize((80, 40), resample=Image.BICUBIC)
+
+# convert the image to grayscale
+im = im.convert("L")
+
+# create a list of ASCII characters to use for the conversion
+chars = "$@B%8WM#*oahkbdpwmZO0QlJYXzcvnxrjft/\|()1{}[]-_+~<>i!lI;:,"
+
+# iterate over the pixels in the image
+for y in range(im.size[1]):
+    # create a list of ASCII characters for this row
+    row = []
+    for x in range(im.size[0]):
+        # get the pixel value (0-255)
+        pixel = im.getpixel((x, y))
+        # map the pixel value to an ASCII character
+        char = chars[int(pixel / 256 * len(chars))]
+        row.append(char)
+    # print the row of ASCII characters
+    print("".join(row))
+
+
+
 def connect():
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)

@@ -23,8 +23,11 @@ t = Timer()
 
     
 def mainLoop(timer):
+    logger.info("Start main loop")
     gpioService.loopLEDs()
-    
+    mqttService.init()
+    time.sleep(5)
+    logger.info("End main loop")
 
         
 
@@ -45,6 +48,6 @@ def connect():
 
 logger.init("INFO")
 connect()
-mqttService.init()
+
 
 t.init(freq=20000, mode=Timer.PERIODIC, callback=mainLoop)

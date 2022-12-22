@@ -2,13 +2,15 @@ import settingsService
 from umqttsimple  import MQTTClient
 import time
 import machine
-
+import logger
 
 
 
 def init():
   client = connect_and_subscribe()
-
+  tm = Timer()
+  check(client)
+  disconnect(client)
 
 def sub_cb():
     print("sub_cb")
@@ -21,10 +23,10 @@ def sub_cb(topic, msg):
   print((topic, msg))
   if msg == b'LEDon':
     print('Device received LEDon message on subscribed topic')
-    led.value(1)
+
   if msg == b'LEDoff':
     print('Device received LEDoff message on subscribed topic')
-    led.value(0)
+
 
 
 def connect_and_subscribe():
@@ -38,10 +40,13 @@ def connect_and_subscribe():
   client.set_callback(sub_cb)
   client.connect()
   client.subscribe(sub_topic)
-  print('Connected to %s MQTT broker as client ID: %s, subscribed to %s topic' % (broker, client_id, sub_topic))
+  logger.info('Connected to %s MQTT broker as client ID: %s, subscribed to %s topic' % (broker, client_id, sub_topic))
   return client
 
-def restart_and_reconnect():
-  print('Failed to connect to MQTT broker. Reconnecting...')
-  time.sleep(10)
-  #machine.reset()
+def check(client):
+    client.check_msg()
+
+
+def disconnect(client):
+    client.disconnect()
+

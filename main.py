@@ -4,50 +4,25 @@ import time
 import gc
 from machine import ADC
 import logger
-import neopixel
 import network
-import urequests
-import network
-import socket
 import gpioService
 from machine import Pin
-import mqttService
+import wifiService
+import tasksService
 
-
-np = neopixel.NeoPixel(machine.Pin(4), 8)
-internalLED = Pin("LED", Pin.OUT)
 t = Timer()
 
-
-
-
-    
-def mainLoop(timer):
-    logger.info("Start main loop")
+def mainLoop():
+    logger.info("Main: Start main loop")
+    wlan = wifiService.connect() 
+    time.sleep(3)   
     gpioService.loopLEDs()
-    mqttService.init()
+    tasksService.getTasks()
     time.sleep(5)
-    logger.info("End main loop")
+    wlan = wifiService.disconnect(wlan)
+    logger.info("Main: End main loop")
+    time.sleep(10)
 
-        
+#t.init(freq=20000, mode=Timer.PERIODIC, callback=mainLoop)
 
-def connect():
-    ssid = settingsService.get('ssid')
-    pw = settingsService.get('pw')
-    wlan = network.WLAN(network.STA_IF)
-    wlan.active(True)
-    wlan.scan()
-    wlan.connect(ssid, pw)
-    time.sleep(5)
-    if wlan.isconnected():
-        logger.info("Connected to WiFi network")
-        internalLED.on()
-    else:
-        logger.info("Unable to connect to WiFi network")
-        internalLED.off()
-
-logger.init("INFO")
-connect()
-
-
-t.init(freq=20000, mode=Timer.PERIODIC, callback=mainLoop)
+mainLoop()

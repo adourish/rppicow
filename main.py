@@ -64,13 +64,11 @@ class TasksService():
         r = json.loads(text)
         return r
 
-    def displayTasks(self):
-  
-        items = getTasks()
+    def displayTasks(self):  
+        items = self.getTasks()
         for item in items:
-            self.loggerService.info("Task:" + item["title"])
-            item.row = 1
-            rowText = item["title"]
+            self.loggerService.info("Task:" + item["content"])
+            rowText = item["content"]
             #epaperService.write(rowText, 1)
 
     def getFirstTask(self, val): 
@@ -108,12 +106,12 @@ class WifiService():
 
 
     def isconnected(self):
-        return wlan.isconnected()
+        return self.wlan.isconnected()
 
     def disconnect(self):
-        if wlan.isconnected():
-            wlan.disconnect()
-        return wlan
+        if self.wlan.isconnected():
+            self.wlan.disconnect()
+        return self.wlan
 
 
 class SettingsService():
@@ -146,7 +144,7 @@ class App():
         time.sleep(3)   
         self.tasksService.displayTasks()
         time.sleep(5)
-        wlan = self.wifiService.disconnect(wlan)
+        wlan = self.wifiService.disconnect()
         self.loggerService.info("Main: End main loop")
         time.sleep(10)
 

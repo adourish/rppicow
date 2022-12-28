@@ -17,7 +17,7 @@ def mainLoop():
     wlan = wifiService.connect() 
     time.sleep(3)   
     gpioService.loopLEDs()
-    tasksService.getTasks()
+    tasksService.getTaskItem()
     time.sleep(5)
     wlan = wifiService.disconnect(wlan)
     logger.info("Main: End main loop")

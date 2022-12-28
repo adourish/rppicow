@@ -82,8 +82,10 @@ class TasksService():
         self.token = settingsService.get("token")
         self.tasksUrl = settingsService.get("tasksUrl")
         self.epaperService = epaperService
-
+        
     def getTasks(self):
+        
+
         header_data = { 
             "content-type": 'application/json; charset=utf-8', 
             "Authorization": self.token,
@@ -94,6 +96,7 @@ class TasksService():
         text = res.text
         self.loggerService.info("Tasks:" + text)
         r = json.loads(text)
+        #led.off()
         return r
 
     def displayTasks(self):  
@@ -122,24 +125,24 @@ class WifiService():
         self.loggerService = loggerService
         self.settingsService = settingsService
         self.wlan = network.WLAN(network.STA_IF)
+        self.internalLED = Pin("LED", Pin.OUT)
 
     def connect(self):
-        internalLED = Pin("LED", Pin.OUT)
-        internalLED.on()
+        
         self.loggerService.info("WiFi: Connecting")
         ssid = self.settingsService.get('ssid')
         pw = self.settingsService.get('pw')
         self.wlan.active(True)
         self.wlan.scan()
         self.wlan.connect(ssid, pw)
-        internalLED.off()
-        time.sleep(5)
+        
+        time.sleep(2)
         if self.wlan.isconnected():
             self.loggerService.info("WiFi: Connected")
-            internalLED.on()
+            self.internalLED.on()
         else:
             self.loggerService.error("WiFi: Failed to connect")
-            internalLED.off()
+            self.internalLED.off()
 
 
     def isconnected(self):
@@ -148,6 +151,7 @@ class WifiService():
     def disconnect(self):
         if self.wlan.isconnected():
             self.wlan.disconnect()
+        self.internalLED.off()
         return self.wlan
 
 
@@ -174,16 +178,16 @@ class App():
         self.settingsService = settingsService
         self.wifiService = wifiService
         self.tasksService = tasksService
-
+        self.taskLED = Pin(1, Pin.OUT)
     def main(self):
+        self.taskLED.on()
         self.loggerService.trace("Main: Start main loop")
         wlan = self.wifiService.connect() 
-        time.sleep(3)   
         self.tasksService.displayTasks()
-        time.sleep(5)
         wlan = self.wifiService.disconnect()
         self.loggerService.trace("Main: End main loop")
-        time.sleep(10)
+        self.taskLED.off()
+
 
 
 

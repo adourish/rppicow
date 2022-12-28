@@ -1,17 +1,17 @@
 import epaper2in9
-from pyb import SPI
+from machine import Pin, SPI
 
-spi = SPI(3, SPI.MASTER, baudrate=2000000, polarity=0, phase=0)
-cs = pyb.Pin('PB6')
-dc = pyb.Pin('PB7')
-rst = pyb.Pin('PB8')
-busy = pyb.Pin('PB9')
-e = epaper2in9.EPD(spi, cs, dc, rst, busy)
+# SPIV on ESP32
+sck = Pin(18)
+miso = Pin(19)
+mosi = Pin(23)
+dc = Pin(32)
+cs = Pin(33)
+rst = Pin(19)
+busy = Pin(35)
+spi = SPI(2, baudrate=20000000, polarity=0, phase=0, sck=sck, miso=miso, mosi=mosi)
+e = epaper4in2.EPD(spi, cs, dc, rst, busy)
 e.init()
-w = 128
-h = 296
-x = 0
-y = 0
 black = 0
 white = 1
 

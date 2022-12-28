@@ -3,11 +3,8 @@ import urequests as requests
 import settingsService
 import json
 import logger
+import epaperService
 
-
-
-def updateTaskItem(value):
-    logger.info("Task:" + value["title"])
 
 def getTasks():
     token = settingsService.get("token")
@@ -24,7 +21,14 @@ def getTasks():
     r = json.loads(text)
     return r
 
-def getFirstTask(val):
+def displayTasks():
+    items = getTasks()
+    for item in items:
+        logger.info("Task:" + item["title"])
+        item.row = 1
+
+
+def getFirstTask(val): 
     for value in val:
         logger.info("Task:" + value["content"])
         return value
@@ -32,8 +36,3 @@ def getFirstTask(val):
 def getTaskItem():
     items = getTasks()
     item = getFirstTask(items)
-
-def displayTasks():
-    items = getTasks()
-    for item in items:
-        logger.info("Task:" + item["title"])

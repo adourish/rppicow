@@ -1,177 +1,537 @@
-#https://github.com/mcauser/micropython-waveshare-epaper/blob/master/epaper2in9.py
-"""
-MicroPython Waveshare 2.9" Black/White GDEH029A1 e-paper display driver
-https://github.com/mcauser/micropython-waveshare-epaper
+# *****************************************************************************
+# * | File        :	  Pico_ePaper-2.9.py
+# * | Author      :   Waveshare team
+# * | Function    :   Electronic paper driver
+# * | Info        :
+# *----------------
+# * | This version:   V1.0
+# * | Date        :   2021-03-16
+# # | Info        :   python demo
+# -----------------------------------------------------------------------------
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documnetation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to  whom the Software is
+# furished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS OR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
 
-MIT License
-Copyright (c) 2017 Waveshare
-Copyright (c) 2018 Mike Causer
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-"""
-
-from micropython import const
-from time import sleep_ms
-import ustruct
+from machine import Pin, SPI
+import framebuf
+import utime
 
 # Display resolution
-EPD_WIDTH  = const(128)
-EPD_HEIGHT = const(296)
+EPD_WIDTH       = 128
+EPD_HEIGHT      = 296
 
-# Display commands
-DRIVER_OUTPUT_CONTROL                = const(0x01)
-BOOSTER_SOFT_START_CONTROL           = const(0x0C)
-#GATE_SCAN_START_POSITION             = const(0x0F)
-DEEP_SLEEP_MODE                      = const(0x10)
-DATA_ENTRY_MODE_SETTING              = const(0x11)
-#SW_RESET                             = const(0x12)
-#TEMPERATURE_SENSOR_CONTROL           = const(0x1A)
-MASTER_ACTIVATION                    = const(0x20)
-#DISPLAY_UPDATE_CONTROL_1             = const(0x21)
-DISPLAY_UPDATE_CONTROL_2             = const(0x22)
-WRITE_RAM                            = const(0x24)
-WRITE_VCOM_REGISTER                  = const(0x2C)
-WRITE_LUT_REGISTER                   = const(0x32)
-SET_DUMMY_LINE_PERIOD                = const(0x3A)
-SET_GATE_TIME                        = const(0x3B)
-#BORDER_WAVEFORM_CONTROL              = const(0x3C)
-SET_RAM_X_ADDRESS_START_END_POSITION = const(0x44)
-SET_RAM_Y_ADDRESS_START_END_POSITION = const(0x45)
-SET_RAM_X_ADDRESS_COUNTER            = const(0x4E)
-SET_RAM_Y_ADDRESS_COUNTER            = const(0x4F)
-TERMINATE_FRAME_READ_WRITE           = const(0xFF)
+RST_PIN         = 12
+DC_PIN          = 8
+CS_PIN          = 9
+BUSY_PIN        = 13
 
-BUSY = const(1)  # 1=busy, 0=idle
+WF_PARTIAL_2IN9 = [
+    0x0,0x40,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x80,0x80,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x40,0x40,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x0,0x80,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x0A,0x0,0x0,0x0,0x0,0x0,0x1,  
+    0x1,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x1,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x22,0x22,0x22,0x22,0x22,0x22,0x0,0x0,0x0,
+    0x22,0x17,0x41,0xB0,0x32,0x36,
+]
 
-class EPD:
-    def __init__(self, spi, cs, dc, rst, busy):
-        self.spi = spi
-        self.cs = cs
-        self.dc = dc
-        self.rst = rst
-        self.busy = busy
-        self.cs.init(self.cs.OUT, value=1)
-        self.dc.init(self.dc.OUT, value=0)
-        self.rst.init(self.rst.OUT, value=0)
-        self.busy.init(self.busy.IN)
+class EPD_2in9_Portrait(framebuf.FrameBuffer):
+    def __init__(self):
+        self.reset_pin = Pin(RST_PIN, Pin.OUT)
+        
+        self.busy_pin = Pin(BUSY_PIN, Pin.IN, Pin.PULL_UP)
+        self.cs_pin = Pin(CS_PIN, Pin.OUT)
         self.width = EPD_WIDTH
         self.height = EPD_HEIGHT
+        
+        self.lut = WF_PARTIAL_2IN9
+        
+        self.spi = SPI(1)
+        self.spi.init(baudrate=4000_000)
+        self.dc_pin = Pin(DC_PIN, Pin.OUT)
+        
+        self.buffer = bytearray(self.height * self.width // 8)
+        super().__init__(self.buffer, self.width, self.height, framebuf.MONO_HLSB)
+        self.init()
 
-    # 30 bytes (look up tables)
-    # original waveshare example
-    LUT_FULL_UPDATE    = bytearray(b'\x02\x02\x01\x11\x12\x12\x22\x22\x66\x69\x69\x59\x58\x99\x99\x88\x00\x00\x00\x00\xF8\xB4\x13\x51\x35\x51\x51\x19\x01\x00')
-    LUT_PARTIAL_UPDATE = bytearray(b'\x10\x18\x18\x08\x18\x18\x08\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x13\x14\x44\x12\x00\x00\x00\x00\x00\x00')
+    def digital_write(self, pin, value):
+        pin.value(value)
 
-    # https://github.com/ZinggJM/GxEPD/blob/master/GxGDEH029A1/GxGDEH029A1.cpp
-    #LUT_FULL_UPDATE    = bytearray(b'\x50\xAA\x55\xAA\x11\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xFF\xFF\x1F\x00\x00\x00\x00\x00\x00\x00')
-    #LUT_PARTIAL_UPDATE = bytearray(b'\x10\x18\x18\x08\x18\x18\x08\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x13\x14\x44\x12\x00\x00\x00\x00\x00\x00')
+    def digital_read(self, pin):
+        return pin.value()
 
-    def _command(self, command, data=None):
-        self.dc(0)
-        self.cs(0)
-        self.spi.write(bytearray([command]))
-        self.cs(1)
-        if data is not None:
-            self._data(data)
+    def delay_ms(self, delaytime):
+        utime.sleep(delaytime / 1000.0)
 
-    def _data(self, data):
-        self.dc(1)
-        self.cs(0)
-        self.spi.write(data)
-        self.cs(1)
+    def spi_writebyte(self, data):
+        self.spi.write(bytearray(data))
 
-    def init(self):
-        self.reset()
-        self._command(DRIVER_OUTPUT_CONTROL, ustruct.pack("<HB", EPD_HEIGHT-1, 0x00))
-        self._command(BOOSTER_SOFT_START_CONTROL, b'\xD7\xD6\x9D')
-        self._command(WRITE_VCOM_REGISTER, b'\xA8') # VCOM 7C
-        self._command(SET_DUMMY_LINE_PERIOD, b'\x1A') # 4 dummy lines per gate
-        self._command(SET_GATE_TIME, b'\x08') # 2us per line
-        self._command(DATA_ENTRY_MODE_SETTING, b'\x03') # X increment Y increment
-        self.set_lut(self.LUT_FULL_UPDATE)
+    def module_exit(self):
+        self.digital_write(self.reset_pin, 0)
 
-    def wait_until_idle(self):
-        while self.busy.value() == BUSY:
-            sleep_ms(100)
-
+    # Hardware reset
     def reset(self):
-        self.rst(0)
-        sleep_ms(200)
-        self.rst(1)
-        sleep_ms(200)
+        self.digital_write(self.reset_pin, 1)
+        self.delay_ms(50) 
+        self.digital_write(self.reset_pin, 0)
+        self.delay_ms(2)
+        self.digital_write(self.reset_pin, 1)
+        self.delay_ms(50)   
 
-    def set_lut(self, lut):
-        self._command(WRITE_LUT_REGISTER, lut)
+    def send_command(self, command):
+        self.digital_write(self.dc_pin, 0)
+        self.digital_write(self.cs_pin, 0)
+        self.spi_writebyte([command])
+        self.digital_write(self.cs_pin, 1)
 
-    # put an image in the frame memory
-    def set_frame_memory(self, image, x, y, w, h):
+    def send_data(self, data):
+        self.digital_write(self.dc_pin, 1)
+        self.digital_write(self.cs_pin, 0)
+        self.spi_writebyte([data])
+        self.digital_write(self.cs_pin, 1)
+        
+    def ReadBusy(self):
+        print("e-Paper busy")
+        while(self.digital_read(self.busy_pin) == 1):      #  0: idle, 1: busy
+            self.delay_ms(10) 
+        print("e-Paper busy release")  
+
+    def TurnOnDisplay(self):
+        self.send_command(0x22) # DISPLAY_UPDATE_CONTROL_2
+        self.send_data(0xF7)
+        self.send_command(0x20) # MASTER_ACTIVATION
+        self.ReadBusy()
+
+    def TurnOnDisplay_Partial(self):
+        self.send_command(0x22) # DISPLAY_UPDATE_CONTROL_2
+        self.send_data(0x0F)
+        self.send_command(0x20) # MASTER_ACTIVATION
+        self.ReadBusy()
+
+    def SendLut(self):
+        self.send_command(0x32)
+        for i in range(0, 153):
+            self.send_data(self.lut[i])
+        self.ReadBusy()
+
+    def SetWindow(self, x_start, y_start, x_end, y_end):
+        self.send_command(0x44) # SET_RAM_X_ADDRESS_START_END_POSITION
         # x point must be the multiple of 8 or the last 3 bits will be ignored
-        x = x & 0xF8
-        w = w & 0xF8
+        self.send_data((x_start>>3) & 0xFF)
+        self.send_data((x_end>>3) & 0xFF)
+        self.send_command(0x45) # SET_RAM_Y_ADDRESS_START_END_POSITION
+        self.send_data(y_start & 0xFF)
+        self.send_data((y_start >> 8) & 0xFF)
+        self.send_data(y_end & 0xFF)
+        self.send_data((y_end >> 8) & 0xFF)
 
-        if (x + w >= self.width):
-            x_end = self.width - 1
-        else:
-            x_end = x + w - 1
+    def SetCursor(self, x, y):
+        self.send_command(0x4E) # SET_RAM_X_ADDRESS_COUNTER
+        self.send_data(x & 0xFF)
+        
+        self.send_command(0x4F) # SET_RAM_Y_ADDRESS_COUNTER
+        self.send_data(y & 0xFF)
+        self.send_data((y >> 8) & 0xFF)
+        self.ReadBusy()
+        
+    def init(self):
+        # EPD hardware init start     
+        self.reset()
 
-        if (y + h >= self.height):
-            y_end = self.height - 1
-        else:
-            y_end = y + h - 1
+        self.ReadBusy()   
+        self.send_command(0x12)  #SWRESET
+        self.ReadBusy()   
 
-        self.set_memory_area(x, y, x_end, y_end)
-        self.set_memory_pointer(x, y)
-        self._command(WRITE_RAM, image)
+        self.send_command(0x01) #Driver output control      
+        self.send_data(0x27)
+        self.send_data(0x01)
+        self.send_data(0x00)
+    
+        self.send_command(0x11) #data entry mode       
+        self.send_data(0x03)
 
-    # replace the frame memory with the specified color
-    def clear_frame_memory(self, color):
-        self.set_memory_area(0, 0, self.width - 1, self.height - 1)
-        self.set_memory_pointer(0, 0)
-        self._command(WRITE_RAM)
-        # send the color data
-        for i in range(0, self.width // 8 * self.height):
-            self._data(bytearray([color]))
+        self.SetWindow(0, 0, self.width-1, self.height-1)
 
-    # draw the current frame memory and switch to the next memory area
-    def display_frame(self):
-        self._command(DISPLAY_UPDATE_CONTROL_2, b'\xC4')
-        self._command(MASTER_ACTIVATION)
-        self._command(TERMINATE_FRAME_READ_WRITE)
-        self.wait_until_idle()
+        self.send_command(0x21) #  Display update control
+        self.send_data(0x00)
+        self.send_data(0x80)	
+    
+        self.SetCursor(0, 0)
+        self.ReadBusy()
+        # EPD hardware init end
+        return 0
 
-    # specify the memory area for data R/W
-    def set_memory_area(self, x_start, y_start, x_end, y_end):
-        self._command(SET_RAM_X_ADDRESS_START_END_POSITION)
-        # x point must be the multiple of 8 or the last 3 bits will be ignored
-        self._data(bytearray([(x_start >> 3) & 0xFF]))
-        self._data(bytearray([(x_end >> 3) & 0xFF]))
-        self._command(SET_RAM_Y_ADDRESS_START_END_POSITION, ustruct.pack("<HH", y_start, y_end))
+    def display(self, image):
+        if (image == None):
+            return            
+        self.send_command(0x24) # WRITE_RAM
+        for j in range(0, self.height):
+            for i in range(0, int(self.width / 8)):
+                self.send_data(image[i + j * int(self.width / 8)])   
+        self.TurnOnDisplay()
 
-    # specify the start point for data R/W
-    def set_memory_pointer(self, x, y):
-        self._command(SET_RAM_X_ADDRESS_COUNTER)
-        # x point must be the multiple of 8 or the last 3 bits will be ignored
-        self._data(bytearray([(x >> 3) & 0xFF]))
-        self._command(SET_RAM_Y_ADDRESS_COUNTER, ustruct.pack("<H", y))
-        self.wait_until_idle()
+    def display_Base(self, image):
+        if (image == None):
+            return   
+        self.send_command(0x24) # WRITE_RAM
+        for j in range(0, self.height):
+            for i in range(0, int(self.width / 8)):
+                self.send_data(image[i + j * int(self.width / 8)])
+                
+        self.send_command(0x26) # WRITE_RAM
+        for j in range(0, self.height):
+            for i in range(0, int(self.width / 8)):
+                self.send_data(image[i + j * int(self.width / 8)])   
+                
+        self.TurnOnDisplay()
+        
+    def display_Partial(self, image):
+        if (image == None):
+            return
+            
+        self.digital_write(self.reset_pin, 0)
+        self.delay_ms(2)
+        self.digital_write(self.reset_pin, 1)
+        self.delay_ms(2)   
+        
+        self.SendLut()
+        self.send_command(0x37) 
+        self.send_data(0x00)  
+        self.send_data(0x00)  
+        self.send_data(0x00)  
+        self.send_data(0x00) 
+        self.send_data(0x00)  	
+        self.send_data(0x40)  
+        self.send_data(0x00)  
+        self.send_data(0x00)   
+        self.send_data(0x00)  
+        self.send_data(0x00)
 
-    # to wake call reset() or init()
+        self.send_command(0x3C) #BorderWavefrom
+        self.send_data(0x80)
+
+        self.send_command(0x22) 
+        self.send_data(0xC0)   
+        self.send_command(0x20) 
+        self.ReadBusy()
+
+        self.SetWindow(0, 0, self.width - 1, self.height - 1)
+        self.SetCursor(0, 0)
+        
+        self.send_command(0x24) # WRITE_RAM
+        for j in range(0, self.height):
+            for i in range(0, int(self.width / 8)):
+                self.send_data(image[i + j * int(self.width / 8)])
+        self.TurnOnDisplay_Partial()
+
+    def Clear(self, color):
+        self.send_command(0x24) # WRITE_RAM
+        for j in range(0, self.height):
+            for i in range(0, int(self.width / 8)):
+                self.send_data(color)
+        self.TurnOnDisplay()
+
     def sleep(self):
-        self._command(DEEP_SLEEP_MODE)
-        self.wait_until_idle()
+        self.send_command(0x10) # DEEP_SLEEP_MODE
+        self.send_data(0x01)
+        
+        self.delay_ms(2000)
+        self.module_exit()
+        
+
+class EPD_2in9_Landscape(framebuf.FrameBuffer):
+    def __init__(self):
+        self.reset_pin = Pin(RST_PIN, Pin.OUT)
+        
+        self.busy_pin = Pin(BUSY_PIN, Pin.IN, Pin.PULL_UP)
+        self.cs_pin = Pin(CS_PIN, Pin.OUT)
+        self.width = EPD_WIDTH
+        self.height = EPD_HEIGHT
+        
+        self.lut = WF_PARTIAL_2IN9
+        
+        self.spi = SPI(1)
+        self.spi.init(baudrate=4000_000)
+        self.dc_pin = Pin(DC_PIN, Pin.OUT)
+        
+        self.buffer = bytearray(self.height * self.width // 8)
+        super().__init__(self.buffer, self.height, self.width, framebuf.MONO_VLSB)
+        self.init()
+
+    def digital_write(self, pin, value):
+        pin.value(value)
+
+    def digital_read(self, pin):
+        return pin.value()
+
+    def delay_ms(self, delaytime):
+        utime.sleep(delaytime / 1000.0)
+
+    def spi_writebyte(self, data):
+        self.spi.write(bytearray(data))
+
+    def module_exit(self):
+        self.digital_write(self.reset_pin, 0)
+
+    # Hardware reset
+    def reset(self):
+        self.digital_write(self.reset_pin, 1)
+        self.delay_ms(50) 
+        self.digital_write(self.reset_pin, 0)
+        self.delay_ms(2)
+        self.digital_write(self.reset_pin, 1)
+        self.delay_ms(50)   
+
+    def send_command(self, command):
+        self.digital_write(self.dc_pin, 0)
+        self.digital_write(self.cs_pin, 0)
+        self.spi_writebyte([command])
+        self.digital_write(self.cs_pin, 1)
+
+    def send_data(self, data):
+        self.digital_write(self.dc_pin, 1)
+        self.digital_write(self.cs_pin, 0)
+        self.spi_writebyte([data])
+        self.digital_write(self.cs_pin, 1)
+        
+    def ReadBusy(self):
+        print("e-Paper busy")
+        while(self.digital_read(self.busy_pin) == 1):      #  0: idle, 1: busy
+            self.delay_ms(10) 
+        print("e-Paper busy release")  
+
+    def TurnOnDisplay(self):
+        self.send_command(0x22) # DISPLAY_UPDATE_CONTROL_2
+        self.send_data(0xF7)
+        self.send_command(0x20) # MASTER_ACTIVATION
+        self.ReadBusy()
+
+    def TurnOnDisplay_Partial(self):
+        self.send_command(0x22) # DISPLAY_UPDATE_CONTROL_2
+        self.send_data(0x0F)
+        self.send_command(0x20) # MASTER_ACTIVATION
+        self.ReadBusy()
+
+    def SendLut(self):
+        self.send_command(0x32)
+        for i in range(0, 153):
+            self.send_data(self.lut[i])
+        self.ReadBusy()
+
+    def SetWindow(self, x_start, y_start, x_end, y_end):
+        self.send_command(0x44) # SET_RAM_X_ADDRESS_START_END_POSITION
+        # x point must be the multiple of 8 or the last 3 bits will be ignored
+        self.send_data((x_start>>3) & 0xFF)
+        self.send_data((x_end>>3) & 0xFF)
+        self.send_command(0x45) # SET_RAM_Y_ADDRESS_START_END_POSITION
+        self.send_data(y_start & 0xFF)
+        self.send_data((y_start >> 8) & 0xFF)
+        self.send_data(y_end & 0xFF)
+        self.send_data((y_end >> 8) & 0xFF)
+
+    def SetCursor(self, x, y):
+        self.send_command(0x4E) # SET_RAM_X_ADDRESS_COUNTER
+        self.send_data(x & 0xFF)
+        
+        self.send_command(0x4F) # SET_RAM_Y_ADDRESS_COUNTER
+        self.send_data(y & 0xFF)
+        self.send_data((y >> 8) & 0xFF)
+        self.ReadBusy()
+        
+    def init(self):
+        # EPD hardware init start     
+        self.reset()
+
+        self.ReadBusy()   
+        self.send_command(0x12)  #SWRESET
+        self.ReadBusy()   
+
+        self.send_command(0x01) #Driver output control      
+        self.send_data(0x27)
+        self.send_data(0x01)
+        self.send_data(0x00)
+    
+        self.send_command(0x11) #data entry mode       
+        self.send_data(0x07)
+
+        self.SetWindow(0, 0, self.width-1, self.height-1)
+
+        self.send_command(0x21) #  Display update control
+        self.send_data(0x00)
+        self.send_data(0x80)
+    
+        self.SetCursor(0, 0)
+        self.ReadBusy()
+        # EPD hardware init end
+        return 0
+
+    def display(self, image):
+        if (image == None):
+            return            
+        self.send_command(0x24) # WRITE_RAM
+        for j in range(int(self.width / 8) - 1, -1, -1):
+            for i in range(0, self.height):
+                self.send_data(image[i + j * self.height])   
+        self.TurnOnDisplay()
+
+    def display_Base(self, image):
+        if (image == None):
+            return   
+        self.send_command(0x24) # WRITE_RAM
+        for j in range(int(self.width / 8) - 1, -1, -1):
+            for i in range(0, self.height):
+                self.send_data(image[i + j * self.height])    
+                
+        self.send_command(0x26) # WRITE_RAM
+        for j in range(int(self.width / 8) - 1, -1, -1):
+            for i in range(0, self.height):
+                self.send_data(image[i + j * self.height])      
+                
+        self.TurnOnDisplay()
+        
+    def display_Partial(self, image):
+        if (image == None):
+            return
+            
+        self.digital_write(self.reset_pin, 0)
+        self.delay_ms(2)
+        self.digital_write(self.reset_pin, 1)
+        self.delay_ms(2)   
+        
+        self.SendLut()
+        self.send_command(0x37) 
+        self.send_data(0x00)  
+        self.send_data(0x00)  
+        self.send_data(0x00)  
+        self.send_data(0x00) 
+        self.send_data(0x00)  
+        self.send_data(0x40)  
+        self.send_data(0x00)  
+        self.send_data(0x00)   
+        self.send_data(0x00)  
+        self.send_data(0x00)
+
+        self.send_command(0x3C) #BorderWavefrom
+        self.send_data(0x80)
+
+        self.send_command(0x22) 
+        self.send_data(0xC0)   
+        self.send_command(0x20) 
+        self.ReadBusy()
+
+        self.SetWindow(0, 0, self.width - 1, self.height - 1)
+        self.SetCursor(0, 0)
+        
+        self.send_command(0x24) # WRITE_RAM
+        for j in range(int(self.width / 8) - 1, -1, -1):
+            for i in range(0, self.height):
+                self.send_data(image[i + j * self.height])    
+        self.TurnOnDisplay_Partial()
+
+    def Clear(self, color):
+        self.send_command(0x24) # WRITE_RAM
+        for j in range(int(self.width / 8) - 1, -1, -1):
+            for i in range(0, self.height):
+                self.send_data(color)
+        self.TurnOnDisplay()
+
+    def sleep(self):
+        self.send_command(0x10) # DEEP_SLEEP_MODE
+        self.send_data(0x01)
+        
+        self.delay_ms(2000)
+        self.module_exit()
+
+if __name__=='__main__':
+    # Landscape
+    epd = EPD_2in9_Landscape()
+    epd.Clear(0xff)
+    
+    epd.fill(0xff)
+    epd.text("Waveshare", 5, 10, 0x00)
+    epd.text("Pico_ePaper-2.9", 5, 20, 0x00)
+    epd.text("Raspberry Pico", 5, 30, 0x00)
+    epd.display(epd.buffer)
+    epd.delay_ms(2000)
+    
+    epd.vline(10, 40, 60, 0x00)
+    epd.vline(120, 40, 60, 0x00)
+    epd.hline(10, 40, 110, 0x00)
+    epd.hline(10, 100, 110, 0x00)
+    epd.line(10, 40, 120, 100, 0x00)
+    epd.line(120, 40, 10, 100, 0x00)
+    epd.display(epd.buffer)
+    epd.delay_ms(2000)
+    
+    epd.rect(150, 5, 50, 55, 0x00)
+    epd.fill_rect(150, 65, 50, 115, 0x00)
+    epd.display_Base(epd.buffer)
+    epd.delay_ms(2000)
+    
+    for i in range(0, 10):
+        epd.fill_rect(220, 60, 10, 10, 0xff)
+        epd.text(str(i), 222, 62, 0x00)
+        epd.display_Partial(epd.buffer)
+
+    # Portrait
+    epd = EPD_2in9_Portrait()
+    epd.Clear(0xff)
+    
+    epd.fill(0xff)
+    epd.text("Waveshare", 5, 10, 0x00)
+    epd.text("Pico_ePaper-2.9", 5, 40, 0x00)
+    epd.text("Raspberry Pico", 5, 70, 0x00)
+    epd.display(epd.buffer)
+    epd.delay_ms(2000)
+    
+    epd.vline(10, 90, 60, 0x00)
+    epd.vline(120, 90, 60, 0x00)
+    epd.hline(10, 90, 110, 0x00)
+    epd.hline(10, 150, 110, 0x00)
+    epd.line(10, 90, 120, 150, 0x00)
+    epd.line(120, 90, 10, 150, 0x00)
+    epd.display(epd.buffer)
+    epd.delay_ms(2000)
+    
+    epd.rect(10, 180, 50, 80, 0x00)
+    epd.fill_rect(70, 180, 50, 80, 0x00)
+    epd.display_Base(epd.buffer)
+    epd.delay_ms(2000)
+    
+    for i in range(0, 10):
+        epd.fill_rect(40, 270, 40, 10, 0xff)
+        epd.text(str(i), 60, 270, 0x00)
+        epd.display_Partial(epd.buffer)
+
+    epd.init()
+    epd.Clear(0xff)
+    epd.delay_ms(2000)
+    print("sleep")
+    epd.sleep()

@@ -57,7 +57,9 @@ A GitHub repository with an application written in MicroPython that uses all of 
 -   If you have worked with full features frameworks like .Net Core or Java then MicroPython can be a bit frustrating
 -   I did abandon a few best practices to speed up the development of my application. One example is that you can create modules for your libraries and import them into the main application. You will see from the GitHub history that you started using import but abandoned it. If there are any errors in your code, the stack trace will mask the root error and give you a bogus error that sends on a wild goose change
 
-# Pico W
+# Hardware
+
+## Pico W
 
 Pico W to E-Paper mapping
 
@@ -70,6 +72,10 @@ Pico W to E-Paper mapping
 | RST        | GP12    | 16           | RST         | Reset pin                                           |
 | BUSY       | GP13    | 17           | BUSY        |                                                     |
 | GND        | GND     | 18           | GND         |                                                     |
+
+## Pinouts
+
+![Raspberry Pi Pico W: high-resolution pinout and specs – Renzo Mischianti](media/aa0d6606326a47e001ec776444b9aabc.png)
 
 # Application
 

@@ -56,3 +56,29 @@ A GitHub repository with an application written in MicroPython that uses all of 
 -   MicroPython is impressive if you worked with Microcontrollers 10-20 years ago. You were forced to write your application using a low-level language like assembly or machine code
 -   If you have worked with full features frameworks like .Net Core or Java then MicroPython can be a bit frustrating
 -   I did abandon a few best practices to speed up the development of my application. One example is that you can create modules for your libraries and import them into the main application. You will see from the GitHub history that you started using import but abandoned it. If there are any errors in your code, the stack trace will mask the root error and give you a bogus error that sends on a wild goose change
+
+# Application
+
+## Settings
+
+Create a settings.py file
+
+settings = {
+
+'ssid': 'your ssid for wifi',
+
+'pw': 'your wifi password',
+
+'subtopic' : b'led',
+
+'pubtopic' : b'led',
+
+'token': 'Bearer your todoist pat',
+
+'tasksUrl': 'https://api.todoist.com/rest/v2/tasks'
+
+}
+
+```
+
+```

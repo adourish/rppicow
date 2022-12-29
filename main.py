@@ -124,40 +124,53 @@ class TasksService():
         self.loggerService.info("Tasks:" + text)
         r = json.loads(text)
         for item in r:
-            status = "Backlog"
+            section = ""
             content = item["content"]
             section_id = item["section_id"]
             project_id = item["project_id"]
-            if section_id == "110613672":
-                status = "To Do"
+            if section_id == "110614030":
+                section = "To Do"
             if section_id == "110614081":
-                status = "Recurring"
-            m = status + "-" + content
-            item["status"] = status
+                section = "Recurring"
+            if section_id == "110613672":
+                section = "In Progress"
+            if section_id == "":
+                section = "Backlog"
+
+            m = section + "-" + content
+            item["section"] = section
             self.loggerService.trace("Task:" + m)
 
-        #led.off()
         return r
 
     def getItemText(self, item):
         due = ""
+        list = item["labels"]
         content = item["content"]
         section_id = item["section_id"]
         project_id = item["project_id"]
-        status = item["status"]
+        section = item["section"]
+        labels = ""
+        for label in list:
+            if labels == "":
+                labels = labels + "" + label
+            else:
+                labels = labels + "," + label
+
         if item["due"] is None:
             due = "N/A"
         else:
             due = item["due"]["string"]
-        m = "(" + due + ")" + status + "-" + content
+        m = "(" + due + ")" + section + "-" + content + " [" + labels + "]"
         return m
 
-    def displayTasks(self):  
-        items = self.getTasks()
+    def displayTasks(self, items, displaySection):  
         i = 1
         for item in items:
             m = self.getItemText(item)
-            self.loggerService.trace("Display:" + m)
+            section = item["section"]
+            if section == displaySection:
+                self.loggerService.trace("Display:" + displaySection +":" + m)
     
             if self.epaperService is None:
                 self.loggerService.warn("Task: No epaper")
@@ -232,7 +245,9 @@ class App():
         self.taskLED.on()
         self.loggerService.trace("Main: Start main loop")
         wlan = self.wifiService.connect() 
-        self.tasksService.displayTasks()
+        items = self.tasksService.getTasks()
+        self.tasksService.displayTasks(items, "To Do")
+        self.tasksService.displayTasks(items, "In Progress")
         wlan = self.wifiService.disconnect()
         self.loggerService.trace("Main: End main loop")
         self.taskLED.off()

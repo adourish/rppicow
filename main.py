@@ -52,19 +52,47 @@ WF_PARTIAL_2IN9 = [
 
 
 class LoggerService():
+    def __init__(self, levels, timeUrl):
+        self.levels = levels
+        self.timeUrl = timeUrl
+              
+
+    def setTime(self):
+        print(self.timeUrl)
+        header_data = { 
+            "content-type": 'application/json; charset=utf-8', 
+            "devicetype": '1'
+            }
+        res = requests.get(self.timeUrl, headers = header_data)
+        text = res.text
+        print("Tasks:" + text)
+        r = json.loads(text)
+        print(text)
+
+    def getTime(self):
+        now = time.localtime()
+        dt = "{}/{}/{}".format(now[1], now[2], now[0])
+        dh = "{}:{}".format(now[3], now[4])
+        t = dt + " " + dh
+        return t
+
     def info(self, message):
-        m = "INFO:"  + ":" + message
+        s = self.getTime()
+        m = "INFO:" + s  + ":" + message
         print(m)
 
     def warn(self, message):
+        s = self.getTime()
         m = "WARN:" + ":" + message
         print(m)
 
     def error(self, message):
+        s = self.getTime()
         m = "ERROR:" + ":" + message
         print(m)
 
     def trace(self, message):
+        s = self.getTime()
         m = "TRACE:" + ":" + message
         print(m)
     
@@ -121,26 +149,66 @@ class TasksService():
         header_data["token"] = self.token
         res = requests.get(self.tasksUrl, headers = header_data)
         text = res.text
-        self.loggerService.info("Tasks:" + text)
+        self.loggerService.trace("Tasks:" + text)
         r = json.loads(text)
-        #led.off()
+        for item in r:
+            section = ""
+            content = item["content"]
+            section_id = item["section_id"]
+            project_id = item["project_id"]
+            if section_id == "110614030":
+                section = "To Do"
+            if section_id == "110614081":
+                section = "Recurring"
+            if section_id == "110613672":
+                section = "In Progress"
+            if section_id == "":
+                section = "Backlog"
+
+            m = section + "-" + content
+            item["section"] = section
+            self.loggerService.trace("Task:" + m)
+
         return r
 
-    def displayTasks(self):  
-        items = self.getTasks()
+    def getItemText(self, item):
+        due = ""
+        list = item["labels"]
+        content = item["content"]
+        section_id = item["section_id"]
+        project_id = item["project_id"]
+        section = item["section"]
+        labels = ""
+        for label in list:
+            if labels == "":
+                labels = labels + "" + label
+            else:
+                labels = labels + "," + label
+
+        if item["due"] is None:
+            due = "N/A"
+        else:
+            due = item["due"]["string"]
+        m = "(" + due + ")" + section + "-" + content + " [" + labels + "]"
+        return m
+
+    def displayTasks(self, items, displaySection):  
         i = 1
         for item in items:
-            self.loggerService.trace("Task:" + item["content"])
-            rowText = item["content"]
+            m = self.getItemText(item)
+            section = item["section"]
+            if section == displaySection:
+                self.loggerService.trace("Display:" + displaySection +":" + m)
+    
             if self.epaperService is None:
                 self.loggerService.warn("Task: No epaper")
             else:
-                self.epaperService.write(rowText, i)
+                self.epaperService.write(m, i)
             i = i +1
 
     def getFirstTask(self, val): 
         for value in val:
-            self.loggerService.info("Task:" + value["content"])
+            self.loggerService.trae("Task:" + value["content"])
             return value
 
     def getTaskItem(self):
@@ -159,9 +227,12 @@ class WifiService():
         self.loggerService.info("WiFi: Connecting")
         ssid = self.settingsService.get('ssid')
         pw = self.settingsService.get('pw')
-        self.wlan.active(True)
-        self.wlan.scan()
-        self.wlan.connect(ssid, pw)
+        if self.wlan.isconnected():
+            self.loggerService.info("WiFi: Already Connected")
+        else:
+            self.wlan.active(True)
+            self.wlan.scan()
+            self.wlan.connect(ssid, pw)
         
         time.sleep(2)
         if self.wlan.isconnected():
@@ -183,12 +254,14 @@ class WifiService():
 
 
 class SettingsService():
-    def __init__(self, s):
+    def __init__(self, s, loggerService):
         self.s = s
+        self.loggerService = loggerService
 
     def get(self, key):
         s = self.s[key]
-        print("get key=" + key + " " + s)
+        m = "get key=" + key + " " + s
+        self.loggerService.trace(m)
         return s
     
 
@@ -205,7 +278,10 @@ class App():
         self.taskLED.on()
         self.loggerService.trace("Main: Start main loop")
         wlan = self.wifiService.connect() 
-        self.tasksService.displayTasks()
+        self.loggerService.setTime()
+        items = self.tasksService.getTasks()
+        self.tasksService.displayTasks(items, "To Do")
+        self.tasksService.displayTasks(items, "In Progress")
         wlan = self.wifiService.disconnect()
         self.loggerService.trace("Main: End main loop")
         self.taskLED.off()
@@ -624,12 +700,13 @@ class EPD_2in9_Landscape(framebuf.FrameBuffer):
 
 _settings = config.settings
 _cipherkey = config.cipherkey
-
+_levels = config.levels
+_timeUrl = _settings["timeUrl"]
 els = None #EPD_2in9_Landscape()
 e = EpaperService(els)
-l = LoggerService()
+l = LoggerService(_levels, _timeUrl)
 c = EncrptionService(_cipherkey, l)
-s = SettingsService(_settings)
+s = SettingsService(_settings, l)
 t = TasksService(s, l, e)
 ws = WifiService(l, s)
 

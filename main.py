@@ -55,7 +55,7 @@ class LoggerService():
     def __init__(self, levels, timeUrl):
         self.levels = levels
         self.timeUrl = timeUrl
-              
+        self.datetime = ""      
 
     def setTime(self):
         print(self.timeUrl)
@@ -65,9 +65,10 @@ class LoggerService():
             }
         res = requests.get(self.timeUrl, headers = header_data)
         text = res.text
-        print("Tasks:" + text)
+        self.trace("Time:" + text)
         r = json.loads(text)
-        print(text)
+        self.datetime = r["datetime"]
+        self.info(self.datetime)
 
     def getTime(self):
         now = time.localtime()
@@ -157,11 +158,11 @@ class TasksService():
             section_id = item["section_id"]
             project_id = item["project_id"]
             if section_id == "110614030":
-                section = "To Do"
+                section = "Todo"
             if section_id == "110614081":
-                section = "Recurring"
+                section = "Recur"
             if section_id == "110613672":
-                section = "In Progress"
+                section = "Active"
             if section_id == "":
                 section = "Backlog"
 

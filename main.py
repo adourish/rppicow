@@ -17,9 +17,7 @@ import uos
 from ucryptolib import aes
 import config
 
-# key size must be 16 or 32
-# key = uos.urandom(32)
-cipherkey = b'I_am_32bytes=256bits_key_padding'
+
 
 # Display resolution
 EPD_WIDTH       = 128
@@ -81,7 +79,7 @@ class EncrptionService():
 
     def encrypt(self, plaintext):
         cipher = aes(self.cipherkey, self.MODE_ECB)
-        pad = BLOCK_SIZE - len(plaintext) % BLOCK_SIZE
+        pad = self.BLOCK_SIZE - len(plaintext) % self.BLOCK_SIZE
         plaintext = plaintext + " "*pad
         encrypted = cipher.encrypt(plaintext)
         print('AES-ECB encrypted:', encrypted )
@@ -625,10 +623,12 @@ class EPD_2in9_Landscape(framebuf.FrameBuffer):
         self.module_exit()
 
 _settings = config.settings
+_cipherkey = config.cipherkey
+
 els = None #EPD_2in9_Landscape()
 e = EpaperService(els)
 l = LoggerService()
-c = EncrptionService(cipherkey, l)
+c = EncrptionService(_cipherkey, l)
 s = SettingsService(_settings)
 t = TasksService(s, l, e)
 ws = WifiService(l, s)

@@ -52,11 +52,22 @@ WF_PARTIAL_2IN9 = [
 
 
 class LoggerService():
-    def __init__(self, levels):
+    def __init__(self, levels, timeUrl):
         self.levels = levels
+        self.timeUrl = timeUrl
+              
 
-    def setTime(t):
-        print(t)
+    def setTime(self):
+        print(self.timeUrl)
+        header_data = { 
+            "content-type": 'application/json; charset=utf-8', 
+            "devicetype": '1'
+            }
+        res = requests.get(self.timeUrl, headers = header_data)
+        text = res.text
+        print("Tasks:" + text)
+        r = json.loads(text)
+        print(text)
 
     def getTime(self):
         now = time.localtime()
@@ -267,6 +278,7 @@ class App():
         self.taskLED.on()
         self.loggerService.trace("Main: Start main loop")
         wlan = self.wifiService.connect() 
+        self.loggerService.setTime()
         items = self.tasksService.getTasks()
         self.tasksService.displayTasks(items, "To Do")
         self.tasksService.displayTasks(items, "In Progress")
@@ -689,10 +701,10 @@ class EPD_2in9_Landscape(framebuf.FrameBuffer):
 _settings = config.settings
 _cipherkey = config.cipherkey
 _levels = config.levels
-
+_timeUrl = _settings["timeUrl"]
 els = None #EPD_2in9_Landscape()
 e = EpaperService(els)
-l = LoggerService(_levels)
+l = LoggerService(_levels, _timeUrl)
 c = EncrptionService(_cipherkey, l)
 s = SettingsService(_settings, l)
 t = TasksService(s, l, e)

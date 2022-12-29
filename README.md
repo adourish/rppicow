@@ -61,7 +61,7 @@ A GitHub repository with an application written in MicroPython that uses all of 
 
 ## Settings
 
-Create a settings.py file
+Create a config.py file with a settings object and a cipherkey string to be imported by the main.py application
 
 settings = {
 
@@ -69,15 +69,17 @@ settings = {
 
 'pw': 'your wifi password',
 
-'subtopic' : b'led',
-
-'pubtopic' : b'led',
-
 'token': 'Bearer your todoist pat',
 
 'tasksUrl': 'https://api.todoist.com/rest/v2/tasks'
 
 }
+
+\# key size must be 16 or 32
+
+\# key = uos.urandom(32)
+
+cipherkey = b'I_am_32bytes=256bits_key_padding'
 
 ```
 

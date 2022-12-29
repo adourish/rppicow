@@ -139,16 +139,26 @@ class TasksService():
         #led.off()
         return r
 
+    def getItemText(self, item):
+        content = item["content"]
+        section_id = item["section_id"]
+        project_id = item["project_id"]
+        status = item["status"]
+        due = item["due"]["string"]
+        m = "(" + due + ")" + status + "-" + content
+        return m
+
     def displayTasks(self):  
         items = self.getTasks()
         i = 1
         for item in items:
-            self.loggerService.trace("Display Task:" + item["content"])
-            rowText = item["content"]
+            m = self.getItemText(item)
+            self.loggerService.trace("Display:" + m)
+    
             if self.epaperService is None:
                 self.loggerService.warn("Task: No epaper")
             else:
-                self.epaperService.write(rowText, i)
+                self.epaperService.write(m, i)
             i = i +1
 
     def getFirstTask(self, val): 

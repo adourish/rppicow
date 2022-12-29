@@ -140,11 +140,15 @@ class TasksService():
         return r
 
     def getItemText(self, item):
+        due = ""
         content = item["content"]
         section_id = item["section_id"]
         project_id = item["project_id"]
         status = item["status"]
-        due = item["due"]["string"]
+        if item["due"] is None:
+            due = "N/A"
+        else:
+            due = item["due"]["string"]
         m = "(" + due + ")" + status + "-" + content
         return m
 

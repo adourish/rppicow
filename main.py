@@ -52,19 +52,36 @@ WF_PARTIAL_2IN9 = [
 
 
 class LoggerService():
+    def __init__(self, levels):
+        self.levels = levels
+
+    def setTime(t):
+        print(t)
+
+    def getTime(self):
+        now = time.localtime()
+        dt = "{}/{}/{}".format(now[1], now[2], now[0])
+        dh = "{}:{}".format(now[3], now[4])
+        t = dt + " " + dh
+        return t
+
     def info(self, message):
-        m = "INFO:"  + ":" + message
+        s = self.getTime()
+        m = "INFO:" + s  + ":" + message
         print(m)
 
     def warn(self, message):
+        s = self.getTime()
         m = "WARN:" + ":" + message
         print(m)
 
     def error(self, message):
+        s = self.getTime()
         m = "ERROR:" + ":" + message
         print(m)
 
     def trace(self, message):
+        s = self.getTime()
         m = "TRACE:" + ":" + message
         print(m)
     
@@ -121,7 +138,7 @@ class TasksService():
         header_data["token"] = self.token
         res = requests.get(self.tasksUrl, headers = header_data)
         text = res.text
-        self.loggerService.info("Tasks:" + text)
+        self.loggerService.trace("Tasks:" + text)
         r = json.loads(text)
         for item in r:
             section = ""
@@ -180,7 +197,7 @@ class TasksService():
 
     def getFirstTask(self, val): 
         for value in val:
-            self.loggerService.info("Task:" + value["content"])
+            self.loggerService.trae("Task:" + value["content"])
             return value
 
     def getTaskItem(self):
@@ -199,9 +216,12 @@ class WifiService():
         self.loggerService.info("WiFi: Connecting")
         ssid = self.settingsService.get('ssid')
         pw = self.settingsService.get('pw')
-        self.wlan.active(True)
-        self.wlan.scan()
-        self.wlan.connect(ssid, pw)
+        if self.wlan.isconnected():
+            self.loggerService.info("WiFi: Already Connected")
+        else:
+            self.wlan.active(True)
+            self.wlan.scan()
+            self.wlan.connect(ssid, pw)
         
         time.sleep(2)
         if self.wlan.isconnected():
@@ -666,10 +686,11 @@ class EPD_2in9_Landscape(framebuf.FrameBuffer):
 
 _settings = config.settings
 _cipherkey = config.cipherkey
+_levels = config.levels
 
 els = None #EPD_2in9_Landscape()
 e = EpaperService(els)
-l = LoggerService()
+l = LoggerService(_levels)
 c = EncrptionService(_cipherkey, l)
 s = SettingsService(_settings)
 t = TasksService(s, l, e)

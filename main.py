@@ -243,12 +243,14 @@ class WifiService():
 
 
 class SettingsService():
-    def __init__(self, s):
+    def __init__(self, s, loggerService):
         self.s = s
+        self.loggerService = loggerService
 
     def get(self, key):
         s = self.s[key]
-        print("get key=" + key + " " + s)
+        m = "get key=" + key + " " + s
+        self.loggerService.trace(m)
         return s
     
 
@@ -692,7 +694,7 @@ els = None #EPD_2in9_Landscape()
 e = EpaperService(els)
 l = LoggerService(_levels)
 c = EncrptionService(_cipherkey, l)
-s = SettingsService(_settings)
+s = SettingsService(_settings, l)
 t = TasksService(s, l, e)
 ws = WifiService(l, s)
 

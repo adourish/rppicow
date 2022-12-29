@@ -25,7 +25,7 @@ A GitHub repository with an application written in MicroPython that uses all of 
 
 ## Setup
 
-![Graphical user interface Description automatically generated](media/718ed5cb3c9d0f53e3f1de20174fa1df.jpeg)
+![Graphical user interface Description automatically generated](media/e4a09f4e15197caaf01e9222a2d28338.jpeg)
 
 ## Tools
 
@@ -50,4 +50,9 @@ A GitHub repository with an application written in MicroPython that uses all of 
 -   You must apply to Google with a YouTube video of your project to create a short-lived token with the required Scopes for Google Tasks API
 -   After some thought, the Google Tasks application is very basic compared to other options, and I have decided to move all of my tasks to Todoist
 -   Todoist allows a Personal Access Token (PAT) and has many features I can use for this project, like filtering tasks, etc.
--   
+
+## MicroPython
+
+-   MicroPython is impressive if you worked with Microcontrollers 10-20 years ago. You were forced to write your application using a low-level language like assembly or machine code
+-   If you have worked with full features frameworks like .Net Core or Java then MicroPython can be a bit frustrating
+-   I did abandon a few best practices to speed up the development of my application. One example is that you can create modules for your libraries and import them into the main application. You will see from the GitHub history that you started using import but abandoned it. If there are any errors in your code, the stack trace will mask the root error and give you a bogus error that sends on a wild goose change

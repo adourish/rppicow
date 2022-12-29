@@ -23,6 +23,15 @@ A GitHub repository with an application written in MicroPython that uses all of 
 
 ![Diagram Description automatically generated](media/26cb755d4e0aee7028838f39bff997d5.png)
 
+## Setup
+
+![Graphical user interface Description automatically generated](media/718ed5cb3c9d0f53e3f1de20174fa1df.jpeg)
+
+## Tools
+
+-   Siglent SDS 1202X-E Oscilloscope
+-   Longwei LW-K3010D Benchtop Digital Switching DC Power Supply
+
 # Issues
 
 ## MQTT client library

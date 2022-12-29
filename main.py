@@ -13,6 +13,13 @@ from machine import Pin
 import ntptime
 import time
 t = Timer()
+import uos
+from ucryptolib import aes
+import config
+
+# key size must be 16 or 32
+# key = uos.urandom(32)
+cipherkey = b'I_am_32bytes=256bits_key_padding'
 
 # Display resolution
 EPD_WIDTH       = 128
@@ -63,6 +70,28 @@ class LoggerService():
         m = "TRACE:" + ":" + message
         print(m)
     
+class EncrptionService():
+    def __init__(self, cipherkey, loggerService):
+        self.cipherkey = cipherkey
+        self.MODE_ECB = 1
+        self.MODE_CBC = 2
+        self.MODE_CTR = 6
+        self.BLOCK_SIZE = 16
+        self.loggerService = loggerService
+
+    def encrypt(self, plaintext):
+        cipher = aes(self.cipherkey, self.MODE_ECB)
+        pad = BLOCK_SIZE - len(plaintext) % BLOCK_SIZE
+        plaintext = plaintext + " "*pad
+        encrypted = cipher.encrypt(plaintext)
+        print('AES-ECB encrypted:', encrypted )
+        return encrypted
+
+    def decrypt(self, encrypted):
+        cipher = aes(self.cipherkey,1) # cipher has to renew for decrypt 
+        decrypted = cipher.decrypt(encrypted)
+        print('AES-ECB plaintext:', decrypted)
+        return decrypted
 
 class EpaperService():
     def __init__(self, els):
@@ -156,28 +185,23 @@ class WifiService():
 
 
 class SettingsService():
-    def __init__(self):
-        self.settings = {
-        'ssid': 'BOOBERFRAGGLE',
-        'pw': 'Womble123',
-        'subtopic' : b'led',
-        'pubtopic' : b'led',
-        'token': 'Bearer 62c623e2ae7407e805dabe692f8af45ad582bcfc',
-        'tasksUrl': 'https://api.todoist.com/rest/v2/tasks'
-        }
+    def __init__(self, s):
+        self.s = s
 
     def get(self, key):
-        s = self.settings[key]
+        s = self.s[key]
         print("get key=" + key + " " + s)
         return s
     
 
 class App():
-    def __init__(self, loggerService, settingsService, wifiService, tasksService):
+    def __init__(self, loggerService, settingsService, wifiService, tasksService, encrptionService):
         self.loggerService = loggerService
         self.settingsService = settingsService
         self.wifiService = wifiService
         self.tasksService = tasksService
+        self.encrptionService = encrptionService
+
         self.taskLED = Pin(1, Pin.OUT)
     def main(self):
         self.taskLED.on()
@@ -600,14 +624,15 @@ class EPD_2in9_Landscape(framebuf.FrameBuffer):
         self.delay_ms(2000)
         self.module_exit()
 
-
+_settings = config.settings
 els = None #EPD_2in9_Landscape()
 e = EpaperService(els)
 l = LoggerService()
-s = SettingsService()
+c = EncrptionService(cipherkey, l)
+s = SettingsService(_settings)
 t = TasksService(s, l, e)
 ws = WifiService(l, s)
 
 
-app = App(l, s, ws, t)
+app = App(l, s, ws, t, c)
 app.main()

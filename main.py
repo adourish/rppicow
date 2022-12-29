@@ -123,6 +123,19 @@ class TasksService():
         text = res.text
         self.loggerService.info("Tasks:" + text)
         r = json.loads(text)
+        for item in r:
+            status = "Backlog"
+            content = item["content"]
+            section_id = item["section_id"]
+            project_id = item["project_id"]
+            if section_id == "110613672":
+                status = "To Do"
+            if section_id == "110614081":
+                status = "Recurring"
+            m = status + "-" + content
+            item["status"] = status
+            self.loggerService.trace("Task:" + m)
+
         #led.off()
         return r
 
@@ -130,7 +143,7 @@ class TasksService():
         items = self.getTasks()
         i = 1
         for item in items:
-            self.loggerService.trace("Task:" + item["content"])
+            self.loggerService.trace("Display Task:" + item["content"])
             rowText = item["content"]
             if self.epaperService is None:
                 self.loggerService.warn("Task: No epaper")

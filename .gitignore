@@ -131,3 +131,4 @@ dmypy.json
 /.vscode/Pico-W-Stub/stdlib
 
 .vscode/*
+/config.py

@@ -31,6 +31,8 @@ A GitHub repository with an application written in MicroPython that uses all of 
 
 ![A picture containing indoor, office, cluttered Description automatically generated](media/1a57b104ab14c1a812b1d9c63ed355c5.png)
 
+![Text Description automatically generated](media/ae2187e88646e823dc9583be75f8180a.png)
+
 ## Tools
 
 -   Siglent SDS 1202X-E Oscilloscope
@@ -62,6 +64,30 @@ A GitHub repository with an application written in MicroPython that uses all of 
 ![Raspberry Pi Pico W: high-resolution pinout and specs – Renzo Mischianti](media/aa0d6606326a47e001ec776444b9aabc.png)
 
 # Application
+
+## Features (Completed)
+
+-   Tasks service
+    -   Integration with Todoist APIs
+-   ePaper service
+    -   Integration with ePaper display
+-   Wifi Service
+    -   Internal LED indicator
+    -   Connect to Wifi
+    -   Reconnect to Wifi
+-   Settings service
+-   Logging service
+-   Interval timer
+
+## Features (Active)
+
+-   Logging service
+-   Documentation
+
+## Features (Todo)
+
+-   Encryption for secrets and keys
+-   Integration with Google Assistant using
 
 ## Settings
 

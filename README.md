@@ -1,10 +1,11 @@
-# Problem Statement
-
-I need devices that show my TODO list in a few places in my house.
-
 # Goal
 
-Create a reference application that shows everything you need to configure a Raspberry Pi Pico W with an e-paper display using MicroPython. I need to be able to create a new task using Google Assistant
+Create a reference application that shows everything you need to configure a Raspberry Pi Pico W with an ePaper display using MicroPython.
+
+-   I want to be able to place an ePaper device on my fridge which displays my todo and active tasks
+-   I want to trigger events using Google Assistant
+-   I want to create new tasks using Google Assistant
+-   I want to create new tasks using a command line
 
 # Outcome
 
@@ -18,19 +19,71 @@ A GitHub repository with an application written in MicroPython that uses all of 
 -   MicroPython Application
 -   Raspberry Pi Pico W
 -   2.9-inch e-paper SPI-compatible display
+    -   Waveshare 2.9inch E-Ink Display Module (B07P6MJPTD)
 
 ## Logical Diagram
 
-![Diagram Description automatically generated](media/26cb755d4e0aee7028838f39bff997d5.png)
+![Diagram Description automatically generated](media/12737869000ed826e2d3ed75d88b981b.png)
 
 ## Setup
 
-![Graphical user interface Description automatically generated](media/e4a09f4e15197caaf01e9222a2d28338.jpeg)
+![Graphical user interface Description automatically generated](media/045384149005245cf501e8d5d2d91a5e.jpeg)
+
+![A picture containing indoor, office, cluttered Description automatically generated](media/1a57b104ab14c1a812b1d9c63ed355c5.png)
 
 ## Tools
 
 -   Siglent SDS 1202X-E Oscilloscope
 -   Longwei LW-K3010D Benchtop Digital Switching DC Power Supply
+
+# Hardware
+
+## Pico W to E-Paper mapping
+
+-   The table below shows the pin mapping between the Pico W and the ePaper display
+    -   https://www.waveshare.com/wiki/Pico-ePaper-2.9
+
+| e-Paper | Pico | Description                                                       |
+|---------|------|-------------------------------------------------------------------|
+| VCC     | VSYS | Power input                                                       |
+| GND     | GND  | GND                                                               |
+| DIN     | GP11 | MOSI pin of SPI interface, data transmitted from Master to Slave. |
+| CLK     | GP10 | SCK pin of SPI interface, clock input                             |
+| CS      | GP9  | Chip select pin of SPI interface, Low active                      |
+| DC      | GP8  | Data/Command control pin (High: Data; Low: Command)               |
+| RST     | GP12 | Reset pin, low active                                             |
+| BUSY    | GP13 | Busy pin                                                          |
+| KEY0    | GP2  | User button 0                                                     |
+| KEY1    | GP3  | User button 1                                                     |
+| RUN     | RUN  | Reset                                                             |
+
+## Pico W Pinouts
+
+![Raspberry Pi Pico W: high-resolution pinout and specs – Renzo Mischianti](media/aa0d6606326a47e001ec776444b9aabc.png)
+
+# Application
+
+## Settings
+
+Create a config.py file with a settings object and a cipherkey string to be imported by the main.py application
+
+settings = {
+
+'ssid': '{your ssid for wifi}',
+
+'pw': '{your wifi password}',
+
+'token': 'Bearer {your todoist token}',
+
+'tasksUrl': 'https://api.todoist.com/rest/v2/tasks'
+
+}
+
+\# key size must be 16 or 32
+
+\# key = uos.urandom(32)
+
+cipherkey = b'I_am_32bytes=256bits_key_padding'
 
 # Issues
 
@@ -56,31 +109,3 @@ A GitHub repository with an application written in MicroPython that uses all of 
 -   MicroPython is impressive if you worked with Microcontrollers 10-20 years ago. You were forced to write your application using a low-level language like assembly or machine code
 -   If you have worked with full features frameworks like .Net Core or Java then MicroPython can be a bit frustrating
 -   I did abandon a few best practices to speed up the development of my application. One example is that you can create modules for your libraries and import them into the main application. You will see from the GitHub history that you started using import but abandoned it. If there are any errors in your code, the stack trace will mask the root error and give you a bogus error that sends on a wild goose change
-
-# Application
-
-## Settings
-
-Create a config.py file with a settings object and a cipherkey string to be imported by the main.py application
-
-settings = {
-
-'ssid': 'your ssid for wifi',
-
-'pw': 'your wifi password',
-
-'token': 'Bearer your todoist pat',
-
-'tasksUrl': 'https://api.todoist.com/rest/v2/tasks'
-
-}
-
-\# key size must be 16 or 32
-
-\# key = uos.urandom(32)
-
-cipherkey = b'I_am_32bytes=256bits_key_padding'
-
-```
-
-```

@@ -65,6 +65,11 @@ class LoggerService():
         s = self.getTime()
         m = "TRACE:" + ":" + message
         print(m)
+
+    def debug(self, message):
+        s = self.getTime()
+        m = "DEBUG:" + ":" + message
+        #print(m)
     
 class EncrptionService():
     def __init__(self, cipherkey, loggerService):
@@ -95,9 +100,19 @@ class EpaperService():
         self.loggerService = loggerService
         self.epd.Clear(0xff)
         self.epd.fill(0xff)
+        self.rowHeight = 30
+        self.x = 0
+        self.y = 0
+        self.xmax = 16
+        self.xmax1 = self.xmax + 1
+        self.xmax2 = 32
+        self.xmax3 = 32 + 1
+
+    def nl(self):
+        self.y = self.y + self.rowHeight
               
     def write(self, text, row):
-        rowHeight = 30
+        rowHeight = 5
         y = rowHeight * row    
         self.epd.Clear(0xff)
         self.epd.fill(0xff)
@@ -106,19 +121,38 @@ class EpaperService():
         self.epd.display(epd.buffer)
         self.epd.delay_ms(2000)
 
+
     def writeTask(self, duedt, content, label, row):
-        rowHeight = 10
-        y1 = rowHeight * row    
-        y2 = rowHeight * row
-        y2 = y2 + 10
-        r1 = content  
-        r2 = duedt + "-" + label +""   
+        xmax1 = self.xmax + 1
+        if len(content) <= self.xmax:
+            r1 = content
+            r2 = None
+            r3 = None
+        elif len(content) > self.xmax and len(content) <= self.xmax2:
+            r1 = content[0:self.xmax]
+            r2 = content[self.xmax:len(content)]
+            r3 = None
+        elif len(content) > self.xmax:
+            r1 = content[0:self.xmax]
+            r2 = content[self.xmax1:self.xmax2]
+            r3 = content[self.xmax2:len(content)]
+        r4 = duedt + "-" + label +""   
+
+        self.epd.text(r1, self.x, self.y, 0x00)
+        self.loggerService.trace("ePaper:x" + ":" + str(self.x) + "-y:" + str(self.y) + "-" + r1)
+        if r2 is not None:
+            self.nl()
+            self.epd.text(r2, self.x, self.y, 0x00)
+            self.loggerService.trace("ePaper:x" + ":" + str(self.x) + "-y:" + str(self.y) + "-" + r2)
+        if r3 is not None:
+            self.nl()
+            self.epd.text(r3, self.x, self.y, 0x00)
+            self.loggerService.trace("ePaper:x" + ":" + str(self.x) + "-y:" + str(self.y) + "-" + r3)
         
-        stri = str(row)
-        self.loggerService.trace("ePaper:y1" + "-" + str(y1) + "-" + r1)
-        self.loggerService.trace("ePaper:y2" + "-" + str(y2) + "-" + r2)
-        self.epd.text(r1, 0, y1, 0x00)
-        self.epd.text(r2, 0, y2, 0x00)
+        self.nl()
+        self.epd.text(r4, self.x, self.y, 0x00)
+        self.loggerService.trace("ePaper:x" + ":" + str(self.x) + "-y:" + str(self.y) + "-" + r4)
+        self.nl()
         self.epd.display(epd.buffer)
         self.epd.delay_ms(2000)
 
@@ -206,8 +240,9 @@ class TasksService():
                 else:
                     self.loggerService.trace("E-paper:" + displaySection +":" + m)
                     self.epaperService.writeTask(duedt, content, label, i)
+                    i = i + 1
 
-            i = i + 1
+            
 
     def getFirstTask(self, val): 
         for value in val:
@@ -264,7 +299,7 @@ class SettingsService():
     def get(self, key):
         s = self.s[key]
         m = "get key=" + key + " " + s
-        self.loggerService.trace(m)
+        self.loggerService.debug(m)
         return s
     
 

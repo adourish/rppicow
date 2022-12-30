@@ -57,7 +57,29 @@ A GitHub repository with an application written in MicroPython that uses all of 
 -   If you have worked with full features frameworks like .Net Core or Java then MicroPython can be a bit frustrating
 -   I did abandon a few best practices to speed up the development of my application. One example is that you can create modules for your libraries and import them into the main application. You will see from the GitHub history that you started using import but abandoned it. If there are any errors in your code, the stack trace will mask the root error and give you a bogus error that sends on a wild goose change
 
+# Hardware
+
+## Pico W
+
+Pico W to E-Paper mapping
+
+| **Signal** | **Pin** | **Position** | **E-paper** | **Description**                                     |
+|------------|---------|--------------|-------------|-----------------------------------------------------|
+| SCK        | GP10    | 14           |  CLK        | Serial Clock (SCK)                                  |
+| MOSI       | GP11    | 15           |             | Master out Slave in (Probably time to rename these) |
+| CS         | GP9     | 12           | CS          | Chip Select                                         |
+| DC         | GP8     | 11           |             |                                                     |
+| RST        | GP12    | 16           | RST         | Reset pin                                           |
+| BUSY       | GP13    | 17           | BUSY        |                                                     |
+| GND        | GND     | 18           | GND         |                                                     |
+
+## Pinouts
+
+![Raspberry Pi Pico W: high-resolution pinout and specs – Renzo Mischianti](media/aa0d6606326a47e001ec776444b9aabc.png)
+
 # Application
+
+## 
 
 ## Settings
 
@@ -65,11 +87,11 @@ Create a config.py file with a settings object and a cipherkey string to be impo
 
 settings = {
 
-'ssid': 'your ssid for wifi',
+'ssid': '{your ssid for wifi}',
 
-'pw': 'your wifi password',
+'pw': '{your wifi password}',
 
-'token': 'Bearer your todoist pat',
+'token': 'Bearer {your todoist token}',
 
 'tasksUrl': 'https://api.todoist.com/rest/v2/tasks'
 

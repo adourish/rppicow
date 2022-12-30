@@ -93,14 +93,32 @@ class EpaperService():
     def __init__(self, epd, loggerService):
         self.epd = epd
         self.loggerService = loggerService
+        self.epd.Clear(0xff)
+        self.epd.fill(0xff)
               
     def write(self, text, row):
         rowHeight = 30
-        loc = rowHeight * row    
+        y = rowHeight * row    
         self.epd.Clear(0xff)
         self.epd.fill(0xff)
-        self.loggerService.trace("ePaper:" + text)
-        self.epd.text(text, 5, 10, 0x00)
+        self.loggerService.trace("ePaper:" + row + ":" + text)
+        self.epd.text(text, 5, y, 0x00)
+        self.epd.display(epd.buffer)
+        self.epd.delay_ms(2000)
+
+    def writeTask(self, duedt, content, label, row):
+        rowHeight = 10
+        y1 = rowHeight * row    
+        y2 = rowHeight * row
+        y2 = y2 + 10
+        r1 = content  
+        r2 = duedt + "-" + label +""   
+        
+        stri = str(row)
+        self.loggerService.trace("ePaper:y1" + "-" + str(y1) + "-" + r1)
+        self.loggerService.trace("ePaper:y2" + "-" + str(y2) + "-" + r2)
+        self.epd.text(r1, 0, y1, 0x00)
+        self.epd.text(r2, 0, y2, 0x00)
         self.epd.display(epd.buffer)
         self.epd.delay_ms(2000)
 
@@ -127,6 +145,7 @@ class TasksService():
         r = json.loads(text)
         for item in r:
             section = ""
+            list = item["labels"]
             content = item["content"]
             section_id = item["section_id"]
             project_id = item["project_id"]
@@ -139,8 +158,21 @@ class TasksService():
             if section_id == "":
                 section = "Backlog"
 
+            labels = ""
+            for label in list:
+                if labels == "":
+                    labels = labels + "" + label
+                else:
+                    labels = labels + "," + label
+
+            if item["due"] is None:
+                duedt = "N/A"
+            else:
+                duedt = item["due"]["string"]
+            item["duedt"] = duedt
             m = section + "-" + content
             item["section"] = section
+            item["label"] = labels
             self.loggerService.trace("Task:" + m)
 
         return r
@@ -152,33 +184,30 @@ class TasksService():
         section_id = item["section_id"]
         project_id = item["project_id"]
         section = item["section"]
-        labels = ""
-        for label in list:
-            if labels == "":
-                labels = labels + "" + label
-            else:
-                labels = labels + "," + label
+        duedt = item["duedt"]
+        label = item["label"]
 
-        if item["due"] is None:
-            due = "N/A"
-        else:
-            due = item["due"]["string"]
-        m = "(" + due + ")" + section + "-" + content + " [" + labels + "]"
+        m = "(" + duedt + ")" + section + "-" + content + " [" + label + "]"
         return m
 
     def displayTasks(self, items, displaySection):  
         i = 1
         for item in items:
             m = self.getItemText(item)
+            content = item["content"]
+            section_id = item["section_id"]
+            project_id = item["project_id"]
             section = item["section"]
+            duedt = item["duedt"]
+            label = item["label"]
             if section == displaySection:
                 if self.epaperService is None:
                     self.loggerService.trace("no E-paper:" + displaySection +":" + m)
                 else:
                     self.loggerService.trace("E-paper:" + displaySection +":" + m)
-                    self.epaperService.write(m, i)
+                    self.epaperService.writeTask(duedt, content, label, i)
 
-            i = i +1
+            i = i + 1
 
     def getFirstTask(self, val): 
         for value in val:
@@ -255,7 +284,7 @@ class App():
         self.loggerService.setTime()
         items = self.tasksService.getTasks()
         self.tasksService.displayTasks(items, "Todo")
-        self.tasksService.displayTasks(items, "Active")
+
         wlan = self.wifiService.disconnect()
         self.loggerService.trace("Main: End main loop")
         self.taskLED.off()
@@ -503,9 +532,9 @@ _settings = config.settings
 _cipherkey = config.cipherkey
 _levels = config.levels
 _timeUrl = _settings["timeUrl"]
-els = EPD_2in9()
+epd = EPD_2in9()
 l = LoggerService(_levels, _timeUrl)
-e = EpaperService(els, l)
+e = EpaperService(epd, l)
 c = EncrptionService(_cipherkey, l)
 s = SettingsService(_settings, l)
 t = TasksService(s, l, e)

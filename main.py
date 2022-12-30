@@ -19,44 +19,25 @@ import config
 
 
 
-# Display resolution
-EPD_WIDTH       = 128
-EPD_HEIGHT      = 296
-
-RST_PIN         = 12
-DC_PIN          = 8
-CS_PIN          = 9
-BUSY_PIN        = 13
-
-WF_PARTIAL_2IN9 = [
-    0x0,0x40,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
-    0x80,0x80,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
-    0x40,0x40,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
-    0x0,0x80,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
-    0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
-    0x0A,0x0,0x0,0x0,0x0,0x0,0x1,  
-    0x1,0x0,0x0,0x0,0x0,0x0,0x0,
-    0x1,0x0,0x0,0x0,0x0,0x0,0x0,
-    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
-    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
-    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
-    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
-    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
-    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
-    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
-    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
-    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
-    0x22,0x22,0x22,0x22,0x22,0x22,0x0,0x0,0x0,
-    0x22,0x17,0x41,0xB0,0x32,0x36,
-]
-
 
 class LoggerService():
-    def __init__(self, levels):
+    def __init__(self, levels, timeUrl):
         self.levels = levels
+        self.timeUrl = timeUrl
+        self.datetime = ""      
 
-    def setTime(t):
-        print(t)
+    def setTime(self):
+        print(self.timeUrl)
+        header_data = { 
+            "content-type": 'application/json; charset=utf-8', 
+            "devicetype": '1'
+            }
+        res = requests.get(self.timeUrl, headers = header_data)
+        text = res.text
+        self.trace("Time:" + text)
+        r = json.loads(text)
+        self.datetime = r["datetime"]
+        self.info(self.datetime)
 
     def getTime(self):
         now = time.localtime()
@@ -84,6 +65,11 @@ class LoggerService():
         s = self.getTime()
         m = "TRACE:" + ":" + message
         print(m)
+
+    def debug(self, message):
+        s = self.getTime()
+        m = "DEBUG:" + ":" + message
+        #print(m)
     
 class EncrptionService():
     def __init__(self, cipherkey, loggerService):
@@ -109,15 +95,63 @@ class EncrptionService():
         return decrypted
 
 class EpaperService():
-    def __init__(self, els):
-        self.els = els
-        
-    def write(self, text, row):
-        rowHeight = 30
-        loc = rowHeight * row
-        #els.Clear(0xff)
-        #els.fill(0xff)
-        #els.text(text, 5, 10, 0x00)
+    def __init__(self, epd, loggerService):
+        self.epd = epd
+        self.loggerService = loggerService
+        self.epd.Clear(0xff)
+        self.epd.fill(0xff)
+        self.rowHeight = 15
+        self.x = 0
+        self.y = 0
+        self.xmax = 16
+        self.xmax1 = self.xmax + 1
+        self.xmax2 = 32
+        self.xmax3 = 32 + 1
+        self.row = 1
+        self.maxrows = 16
+
+    def nl(self):
+        self.y = self.y + self.rowHeight
+        self.row = self.row +1
+    def drawnl(self):
+        self.y = self.y + 3
+        self.epd.hline(0, self.y + 2, 140, 0x00)
+        self.y = self.y + 5
+
+    def writeTask(self, duedt, content, label, row):
+        if self.row <= self.maxrows:
+            if len(content) <= self.xmax:
+                r1 = content
+                r2 = None
+                r3 = None
+            elif len(content) > self.xmax and len(content) <= self.xmax2:
+                r1 = content[0:self.xmax]
+                r2 = content[self.xmax:len(content)]
+                r3 = None
+            elif len(content) > self.xmax:
+                r1 = content[0:self.xmax]
+                r2 = content[self.xmax1:self.xmax2]
+                r3 = content[self.xmax2:len(content)]
+            r4 = duedt + "[" + label +"]"   
+
+            self.epd.text(r1, self.x, self.y, 0x00)
+            self.loggerService.trace("ePaper:x" + ":" + str(self.x) + "-y:" + str(self.y) + "-" + r1)
+            if r2 is not None:
+                self.nl()
+                self.epd.text(r2, self.x, self.y, 0x00)
+                self.loggerService.trace("ePaper:x" + ":" + str(self.x) + "-y:" + str(self.y) + "-" + r2)
+            if r3 is not None:
+                self.nl()
+                self.epd.text(r3, self.x, self.y, 0x00)
+                self.loggerService.trace("ePaper:x" + ":" + str(self.x) + "-y:" + str(self.y) + "-" + r3)
+            
+            self.nl()
+            self.epd.text(r4, self.x, self.y, 0x00)
+            self.loggerService.trace("ePaper:x" + ":" + str(self.x) + "-y:" + str(self.y) + "-" + r4)
+            
+            self.drawnl()
+            self.epd.display(epd.buffer)
+            self.epd.delay_ms(2000)
 
 class TasksService():
     def __init__(self, settingsService, loggerService, epaperService):
@@ -142,20 +176,35 @@ class TasksService():
         r = json.loads(text)
         for item in r:
             section = ""
+            list = item["labels"]
             content = item["content"]
             section_id = item["section_id"]
             project_id = item["project_id"]
             if section_id == "110614030":
-                section = "To Do"
+                section = "Todo"
             if section_id == "110614081":
-                section = "Recurring"
+                section = "Recur"
             if section_id == "110613672":
-                section = "In Progress"
+                section = "Active"
             if section_id == "":
                 section = "Backlog"
 
+            labels = ""
+            for label in list:
+                if labels == "":
+                    labels = labels + "" + label
+                else:
+                    labels = labels + "," + label
+
+            if item["due"] is None:
+                duedt = "N/A"
+            else:
+                _duedt = item["due"]["date"]
+                duedt = _duedt[5:10]
+            item["duedt"] = duedt
             m = section + "-" + content
             item["section"] = section
+            item["label"] = labels
             self.loggerService.trace("Task:" + m)
 
         return r
@@ -167,33 +216,31 @@ class TasksService():
         section_id = item["section_id"]
         project_id = item["project_id"]
         section = item["section"]
-        labels = ""
-        for label in list:
-            if labels == "":
-                labels = labels + "" + label
-            else:
-                labels = labels + "," + label
+        duedt = item["duedt"]
+        label = item["label"]
 
-        if item["due"] is None:
-            due = "N/A"
-        else:
-            due = item["due"]["string"]
-        m = "(" + due + ")" + section + "-" + content + " [" + labels + "]"
+        m = "(" + duedt + ")" + section + "-" + content + " [" + label + "]"
         return m
 
     def displayTasks(self, items, displaySection):  
         i = 1
         for item in items:
             m = self.getItemText(item)
+            content = item["content"]
+            section_id = item["section_id"]
+            project_id = item["project_id"]
             section = item["section"]
+            duedt = item["duedt"]
+            label = item["label"]
             if section == displaySection:
-                self.loggerService.trace("Display:" + displaySection +":" + m)
-    
-            if self.epaperService is None:
-                self.loggerService.warn("Task: No epaper")
-            else:
-                self.epaperService.write(m, i)
-            i = i +1
+                if self.epaperService is None:
+                    self.loggerService.trace("no E-paper:" + displaySection +":" + m)
+                else:
+                    self.loggerService.trace("E-paper:" + displaySection +":" + m)
+                    self.epaperService.writeTask(duedt, content, label, i)
+                    i = i + 1
+
+            
 
     def getFirstTask(self, val): 
         for value in val:
@@ -243,12 +290,14 @@ class WifiService():
 
 
 class SettingsService():
-    def __init__(self, s):
+    def __init__(self, s, loggerService):
         self.s = s
+        self.loggerService = loggerService
 
     def get(self, key):
         s = self.s[key]
-        print("get key=" + key + " " + s)
+        m = "get key=" + key + " " + s
+        self.loggerService.debug(m)
         return s
     
 
@@ -265,19 +314,48 @@ class App():
         self.taskLED.on()
         self.loggerService.trace("Main: Start main loop")
         wlan = self.wifiService.connect() 
+        self.loggerService.setTime()
         items = self.tasksService.getTasks()
-        self.tasksService.displayTasks(items, "To Do")
-        self.tasksService.displayTasks(items, "In Progress")
+        self.tasksService.displayTasks(items, "Todo")
+        self.tasksService.displayTasks(items, "Active")
         wlan = self.wifiService.disconnect()
         self.loggerService.trace("Main: End main loop")
         self.taskLED.off()
 
+########################################################################################
+# Display resolution
+# Display resolution
+EPD_WIDTH       = 128
+EPD_HEIGHT      = 296
 
+RST_PIN         = 12
+DC_PIN          = 8
+CS_PIN          = 9
+BUSY_PIN        = 13
 
+WF_PARTIAL_2IN9 = [
+    0x0,0x40,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x80,0x80,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x40,0x40,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x0,0x80,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x0A,0x0,0x0,0x0,0x0,0x0,0x1,  
+    0x1,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x1,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x0,0x0,0x0,0x0,0x0,0x0,0x0,
+    0x22,0x22,0x22,0x22,0x22,0x22,0x0,0x0,0x0,
+    0x22,0x17,0x41,0xB0,0x32,0x36,
+]
 
-
-
-class EPD_2in9_Portrait(framebuf.FrameBuffer):
+class EPD_2in9(framebuf.FrameBuffer):
     def __init__(self):
         self.reset_pin = Pin(RST_PIN, Pin.OUT)
         
@@ -479,223 +557,23 @@ class EPD_2in9_Portrait(framebuf.FrameBuffer):
         
         self.delay_ms(2000)
         self.module_exit()
-        
+########################################################################################
 
-class EPD_2in9_Landscape(framebuf.FrameBuffer):
-    def __init__(self):
-        self.reset_pin = Pin(RST_PIN, Pin.OUT)
-        
-        self.busy_pin = Pin(BUSY_PIN, Pin.IN, Pin.PULL_UP)
-        self.cs_pin = Pin(CS_PIN, Pin.OUT)
-        self.width = EPD_WIDTH
-        self.height = EPD_HEIGHT
-        
-        self.lut = WF_PARTIAL_2IN9
-        
-        self.spi = SPI(1)
-        self.spi.init(baudrate=4000_000)
-        self.dc_pin = Pin(DC_PIN, Pin.OUT)
-        
-        self.buffer = bytearray(self.height * self.width // 8)
-        super().__init__(self.buffer, self.height, self.width, framebuf.MONO_VLSB)
-        self.init()
 
-    def digital_write(self, pin, value):
-        pin.value(value)
-
-    def digital_read(self, pin):
-        return pin.value()
-
-    def delay_ms(self, delaytime):
-        utime.sleep(delaytime / 1000.0)
-
-    def spi_writebyte(self, data):
-        self.spi.write(bytearray(data))
-
-    def module_exit(self):
-        self.digital_write(self.reset_pin, 0)
-
-    # Hardware reset
-    def reset(self):
-        self.digital_write(self.reset_pin, 1)
-        self.delay_ms(50) 
-        self.digital_write(self.reset_pin, 0)
-        self.delay_ms(2)
-        self.digital_write(self.reset_pin, 1)
-        self.delay_ms(50)   
-
-    def send_command(self, command):
-        self.digital_write(self.dc_pin, 0)
-        self.digital_write(self.cs_pin, 0)
-        self.spi_writebyte([command])
-        self.digital_write(self.cs_pin, 1)
-
-    def send_data(self, data):
-        self.digital_write(self.dc_pin, 1)
-        self.digital_write(self.cs_pin, 0)
-        self.spi_writebyte([data])
-        self.digital_write(self.cs_pin, 1)
-        
-    def ReadBusy(self):
-        print("e-Paper busy")
-        while(self.digital_read(self.busy_pin) == 1):      #  0: idle, 1: busy
-            self.delay_ms(10) 
-        print("e-Paper busy release")  
-
-    def TurnOnDisplay(self):
-        self.send_command(0x22) # DISPLAY_UPDATE_CONTROL_2
-        self.send_data(0xF7)
-        self.send_command(0x20) # MASTER_ACTIVATION
-        self.ReadBusy()
-
-    def TurnOnDisplay_Partial(self):
-        self.send_command(0x22) # DISPLAY_UPDATE_CONTROL_2
-        self.send_data(0x0F)
-        self.send_command(0x20) # MASTER_ACTIVATION
-        self.ReadBusy()
-
-    def SendLut(self):
-        self.send_command(0x32)
-        for i in range(0, 153):
-            self.send_data(self.lut[i])
-        self.ReadBusy()
-
-    def SetWindow(self, x_start, y_start, x_end, y_end):
-        self.send_command(0x44) # SET_RAM_X_ADDRESS_START_END_POSITION
-        # x point must be the multiple of 8 or the last 3 bits will be ignored
-        self.send_data((x_start>>3) & 0xFF)
-        self.send_data((x_end>>3) & 0xFF)
-        self.send_command(0x45) # SET_RAM_Y_ADDRESS_START_END_POSITION
-        self.send_data(y_start & 0xFF)
-        self.send_data((y_start >> 8) & 0xFF)
-        self.send_data(y_end & 0xFF)
-        self.send_data((y_end >> 8) & 0xFF)
-
-    def SetCursor(self, x, y):
-        self.send_command(0x4E) # SET_RAM_X_ADDRESS_COUNTER
-        self.send_data(x & 0xFF)
-        
-        self.send_command(0x4F) # SET_RAM_Y_ADDRESS_COUNTER
-        self.send_data(y & 0xFF)
-        self.send_data((y >> 8) & 0xFF)
-        self.ReadBusy()
-        
-    def init(self):
-        # EPD hardware init start     
-        self.reset()
-
-        self.ReadBusy()   
-        self.send_command(0x12)  #SWRESET
-        self.ReadBusy()   
-
-        self.send_command(0x01) #Driver output control      
-        self.send_data(0x27)
-        self.send_data(0x01)
-        self.send_data(0x00)
-    
-        self.send_command(0x11) #data entry mode       
-        self.send_data(0x07)
-
-        self.SetWindow(0, 0, self.width-1, self.height-1)
-
-        self.send_command(0x21) #  Display update control
-        self.send_data(0x00)
-        self.send_data(0x80)
-    
-        self.SetCursor(0, 0)
-        self.ReadBusy()
-        # EPD hardware init end
-        return 0
-
-    def display(self, image):
-        if (image == None):
-            return            
-        self.send_command(0x24) # WRITE_RAM
-        for j in range(int(self.width / 8) - 1, -1, -1):
-            for i in range(0, self.height):
-                self.send_data(image[i + j * self.height])   
-        self.TurnOnDisplay()
-
-    def display_Base(self, image):
-        if (image == None):
-            return   
-        self.send_command(0x24) # WRITE_RAM
-        for j in range(int(self.width / 8) - 1, -1, -1):
-            for i in range(0, self.height):
-                self.send_data(image[i + j * self.height])    
-                
-        self.send_command(0x26) # WRITE_RAM
-        for j in range(int(self.width / 8) - 1, -1, -1):
-            for i in range(0, self.height):
-                self.send_data(image[i + j * self.height])      
-                
-        self.TurnOnDisplay()
-        
-    def display_Partial(self, image):
-        if (image == None):
-            return
-            
-        self.digital_write(self.reset_pin, 0)
-        self.delay_ms(2)
-        self.digital_write(self.reset_pin, 1)
-        self.delay_ms(2)   
-        
-        self.SendLut()
-        self.send_command(0x37) 
-        self.send_data(0x00)  
-        self.send_data(0x00)  
-        self.send_data(0x00)  
-        self.send_data(0x00) 
-        self.send_data(0x00)  
-        self.send_data(0x40)  
-        self.send_data(0x00)  
-        self.send_data(0x00)   
-        self.send_data(0x00)  
-        self.send_data(0x00)
-
-        self.send_command(0x3C) #BorderWavefrom
-        self.send_data(0x80)
-
-        self.send_command(0x22) 
-        self.send_data(0xC0)   
-        self.send_command(0x20) 
-        self.ReadBusy()
-
-        self.SetWindow(0, 0, self.width - 1, self.height - 1)
-        self.SetCursor(0, 0)
-        
-        self.send_command(0x24) # WRITE_RAM
-        for j in range(int(self.width / 8) - 1, -1, -1):
-            for i in range(0, self.height):
-                self.send_data(image[i + j * self.height])    
-        self.TurnOnDisplay_Partial()
-
-    def Clear(self, color):
-        self.send_command(0x24) # WRITE_RAM
-        for j in range(int(self.width / 8) - 1, -1, -1):
-            for i in range(0, self.height):
-                self.send_data(color)
-        self.TurnOnDisplay()
-
-    def sleep(self):
-        self.send_command(0x10) # DEEP_SLEEP_MODE
-        self.send_data(0x01)
-        
-        self.delay_ms(2000)
-        self.module_exit()
 
 _settings = config.settings
 _cipherkey = config.cipherkey
 _levels = config.levels
-
-els = None #EPD_2in9_Landscape()
-e = EpaperService(els)
-l = LoggerService(_levels)
+_timeUrl = _settings["timeUrl"]
+epd = EPD_2in9()
+l = LoggerService(_levels, _timeUrl)
+e = EpaperService(epd, l)
 c = EncrptionService(_cipherkey, l)
-s = SettingsService(_settings)
+s = SettingsService(_settings, l)
 t = TasksService(s, l, e)
 ws = WifiService(l, s)
 
 
 app = App(l, s, ws, t, c)
 app.main()
+

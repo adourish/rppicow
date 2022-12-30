@@ -100,61 +100,58 @@ class EpaperService():
         self.loggerService = loggerService
         self.epd.Clear(0xff)
         self.epd.fill(0xff)
-        self.rowHeight = 30
+        self.rowHeight = 15
         self.x = 0
         self.y = 0
         self.xmax = 16
         self.xmax1 = self.xmax + 1
         self.xmax2 = 32
         self.xmax3 = 32 + 1
+        self.row = 1
+        self.maxrows = 16
 
     def nl(self):
         self.y = self.y + self.rowHeight
-              
-    def write(self, text, row):
-        rowHeight = 5
-        y = rowHeight * row    
-        self.epd.Clear(0xff)
-        self.epd.fill(0xff)
-        self.loggerService.trace("ePaper:" + row + ":" + text)
-        self.epd.text(text, 5, y, 0x00)
-        self.epd.display(epd.buffer)
-        self.epd.delay_ms(2000)
-
+        self.row = self.row +1
+    def drawnl(self):
+        self.y = self.y + 3
+        self.epd.hline(0, self.y + 2, 140, 0x00)
+        self.y = self.y + 5
 
     def writeTask(self, duedt, content, label, row):
-        xmax1 = self.xmax + 1
-        if len(content) <= self.xmax:
-            r1 = content
-            r2 = None
-            r3 = None
-        elif len(content) > self.xmax and len(content) <= self.xmax2:
-            r1 = content[0:self.xmax]
-            r2 = content[self.xmax:len(content)]
-            r3 = None
-        elif len(content) > self.xmax:
-            r1 = content[0:self.xmax]
-            r2 = content[self.xmax1:self.xmax2]
-            r3 = content[self.xmax2:len(content)]
-        r4 = duedt + "-" + label +""   
+        if self.row <= self.maxrows:
+            if len(content) <= self.xmax:
+                r1 = content
+                r2 = None
+                r3 = None
+            elif len(content) > self.xmax and len(content) <= self.xmax2:
+                r1 = content[0:self.xmax]
+                r2 = content[self.xmax:len(content)]
+                r3 = None
+            elif len(content) > self.xmax:
+                r1 = content[0:self.xmax]
+                r2 = content[self.xmax1:self.xmax2]
+                r3 = content[self.xmax2:len(content)]
+            r4 = duedt + "[" + label +"]"   
 
-        self.epd.text(r1, self.x, self.y, 0x00)
-        self.loggerService.trace("ePaper:x" + ":" + str(self.x) + "-y:" + str(self.y) + "-" + r1)
-        if r2 is not None:
+            self.epd.text(r1, self.x, self.y, 0x00)
+            self.loggerService.trace("ePaper:x" + ":" + str(self.x) + "-y:" + str(self.y) + "-" + r1)
+            if r2 is not None:
+                self.nl()
+                self.epd.text(r2, self.x, self.y, 0x00)
+                self.loggerService.trace("ePaper:x" + ":" + str(self.x) + "-y:" + str(self.y) + "-" + r2)
+            if r3 is not None:
+                self.nl()
+                self.epd.text(r3, self.x, self.y, 0x00)
+                self.loggerService.trace("ePaper:x" + ":" + str(self.x) + "-y:" + str(self.y) + "-" + r3)
+            
             self.nl()
-            self.epd.text(r2, self.x, self.y, 0x00)
-            self.loggerService.trace("ePaper:x" + ":" + str(self.x) + "-y:" + str(self.y) + "-" + r2)
-        if r3 is not None:
-            self.nl()
-            self.epd.text(r3, self.x, self.y, 0x00)
-            self.loggerService.trace("ePaper:x" + ":" + str(self.x) + "-y:" + str(self.y) + "-" + r3)
-        
-        self.nl()
-        self.epd.text(r4, self.x, self.y, 0x00)
-        self.loggerService.trace("ePaper:x" + ":" + str(self.x) + "-y:" + str(self.y) + "-" + r4)
-        self.nl()
-        self.epd.display(epd.buffer)
-        self.epd.delay_ms(2000)
+            self.epd.text(r4, self.x, self.y, 0x00)
+            self.loggerService.trace("ePaper:x" + ":" + str(self.x) + "-y:" + str(self.y) + "-" + r4)
+            
+            self.drawnl()
+            self.epd.display(epd.buffer)
+            self.epd.delay_ms(2000)
 
 class TasksService():
     def __init__(self, settingsService, loggerService, epaperService):
@@ -202,7 +199,8 @@ class TasksService():
             if item["due"] is None:
                 duedt = "N/A"
             else:
-                duedt = item["due"]["string"]
+                _duedt = item["due"]["date"]
+                duedt = _duedt[5:10]
             item["duedt"] = duedt
             m = section + "-" + content
             item["section"] = section
@@ -319,7 +317,7 @@ class App():
         self.loggerService.setTime()
         items = self.tasksService.getTasks()
         self.tasksService.displayTasks(items, "Todo")
-
+        self.tasksService.displayTasks(items, "Active")
         wlan = self.wifiService.disconnect()
         self.loggerService.trace("Main: End main loop")
         self.taskLED.off()

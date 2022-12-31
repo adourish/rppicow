@@ -97,8 +97,7 @@ class EpaperService():
     def __init__(self, epd, loggerService):
         self.epd = epd
         self.loggerService = loggerService
-        self.epd.Clear(0xff)
-        self.epd.fill(0xff)
+        
         self.rowHeight = 15
         self.x = 0
         self.y = 0
@@ -108,6 +107,10 @@ class EpaperService():
         self.xmax3 = 32 + 1
         self.row = 1
         self.maxrows = 16
+
+    def clear(self):
+        self.epd.Clear(0xff)
+        self.epd.fill(0xff)
 
     def nl(self):
         self.y = self.y + self.rowHeight
@@ -233,7 +236,11 @@ class TasksService():
         return m
 
     def displayHeader(self):
+        self.epaperService.clear()
         self.epaperService.writeDate()
+
+    def displayFooter(self):
+        self.epaperService.draw()
 
     def displayTasks(self, items, displaySection):  
         i = 1
@@ -252,7 +259,7 @@ class TasksService():
                     self.loggerService.trace("E-paper:" + displaySection +":" + m)
                     self.epaperService.writeTask(duedt, content, label, i)
                     i = i + 1
-        self.epaperService.draw()
+
             
 
     def getFirstTask(self, val): 
@@ -332,6 +339,7 @@ class App():
         self.tasksService.displayHeader()
         self.tasksService.displayTasks(items, "Todo")
         self.tasksService.displayTasks(items, "Active")
+        self.tasksService.displayFooter()
         wlan = self.wifiService.disconnect()
         self.loggerService.trace("Main: End main loop")
         self.taskLED.off()
@@ -574,29 +582,29 @@ class EPD_2in9(framebuf.FrameBuffer):
 ########################################################################################
 
 
-
-epd = EPD_2in9()
-i = 0
-while i == 0:
-    
-    _settings = config.settings
-    _cipherkey = config.cipherkey
-    _levels = config.levels
-    _timeUrl = _settings["timeUrl"]
-    _loopIntervalS = _settings["loopIntervalS"]
-    
-    l = LoggerService(_levels, _timeUrl, ntptime)
-    e = EpaperService(epd, l)
-    c = EncrptionService(_cipherkey, l)
-    s = SettingsService(_settings, l)
-    t = TasksService(s, l, e)
-    ws = WifiService(l, s)
-    l.info("MainLoop:"  + ":Start loop")
-    l.info("Main: Interval Seconds:" + str(_loopIntervalS))
-    app = App(l, s, ws, t, c)
-    app.main()
-    l.info("MainLoop:" + ":End loop")
-    time.sleep(60)
+if __name__=='__main__':
+    epd = EPD_2in9()
+    i = 0
+    while i == 0:
+        
+        _settings = config.settings
+        _cipherkey = config.cipherkey
+        _levels = config.levels
+        _timeUrl = _settings["timeUrl"]
+        _loopIntervalS = _settings["loopIntervalS"]
+        
+        l = LoggerService(_levels, _timeUrl, ntptime)
+        e = EpaperService(epd, l)
+        c = EncrptionService(_cipherkey, l)
+        s = SettingsService(_settings, l)
+        t = TasksService(s, l, e)
+        ws = WifiService(l, s)
+        l.info("MainLoop:"  + ":Start loop")
+        l.info("Main: Interval Seconds:" + str(_loopIntervalS))
+        app = App(l, s, ws, t, c)
+        app.main()
+        l.info("MainLoop:" + ":End loop")
+        time.sleep(60)
 
 
 

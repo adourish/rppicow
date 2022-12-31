@@ -16,28 +16,22 @@ t = Timer()
 import uos
 from ucryptolib import aes
 import config
-
+import ntptime
 
 
 
 class LoggerService():
-    def __init__(self, levels, timeUrl):
+    def __init__(self, levels, timeUrl, ntptime):
         self.levels = levels
         self.timeUrl = timeUrl
-        self.datetime = ""      
+   
 
     def setTime(self):
-        print(self.timeUrl)
-        header_data = { 
-            "content-type": 'application/json; charset=utf-8', 
-            "devicetype": '1'
-            }
-        res = requests.get(self.timeUrl, headers = header_data)
-        text = res.text
-        self.trace("Time:" + text)
-        r = json.loads(text)
-        self.datetime = r["datetime"]
-        self.info(self.datetime)
+        try:
+            ntptime.settime()
+        except:
+            self.error("Logger: Failed to set time")
+
 
     def getTime(self):
         now = time.localtime()
@@ -58,17 +52,17 @@ class LoggerService():
 
     def error(self, message):
         s = self.getTime()
-        m = "ERROR:" + ":" + message
+        m = "ERROR:" + s  + ":" + message
         print(m)
 
     def trace(self, message):
         s = self.getTime()
-        m = "TRACE:" + ":" + message
+        m = "TRACE:" + s  + ":" + message
         print(m)
 
     def debug(self, message):
         s = self.getTime()
-        m = "DEBUG:" + ":" + message
+        m = "DEBUG:" + s  + ":" + message
         #print(m)
     
 class EncrptionService():
@@ -113,10 +107,21 @@ class EpaperService():
     def nl(self):
         self.y = self.y + self.rowHeight
         self.row = self.row +1
+
     def drawnl(self):
-        self.y = self.y + 3
+        self.y = self.y + 7
         self.epd.hline(0, self.y + 2, 140, 0x00)
         self.y = self.y + 5
+
+    def draw(self):
+        self.epd.display(epd.buffer)
+        self.epd.delay_ms(2000)
+
+    def writeDate():
+        dt = self.loggerService.getTime()
+        self.epd.text(dt, self.x, self.y, 0x00)
+        self.drawnl()
+        
 
     def writeTask(self, duedt, content, label, row):
         if self.row <= self.maxrows:
@@ -132,7 +137,7 @@ class EpaperService():
                 r1 = content[0:self.xmax]
                 r2 = content[self.xmax1:self.xmax2]
                 r3 = content[self.xmax2:len(content)]
-            r4 = duedt + "[" + label +"]"   
+            r4 = "[" + duedt + "][" + label +"]"   
 
             self.epd.text(r1, self.x, self.y, 0x00)
             self.loggerService.trace("ePaper:x" + ":" + str(self.x) + "-y:" + str(self.y) + "-" + r1)
@@ -150,8 +155,7 @@ class EpaperService():
             self.loggerService.trace("ePaper:x" + ":" + str(self.x) + "-y:" + str(self.y) + "-" + r4)
             
             self.drawnl()
-            self.epd.display(epd.buffer)
-            self.epd.delay_ms(2000)
+
 
 class TasksService():
     def __init__(self, settingsService, loggerService, epaperService):
@@ -239,7 +243,7 @@ class TasksService():
                     self.loggerService.trace("E-paper:" + displaySection +":" + m)
                     self.epaperService.writeTask(duedt, content, label, i)
                     i = i + 1
-
+        self.epaperService.draw()
             
 
     def getFirstTask(self, val): 
@@ -565,15 +569,23 @@ _settings = config.settings
 _cipherkey = config.cipherkey
 _levels = config.levels
 _timeUrl = _settings["timeUrl"]
+_loopIntervalMS = _settings["loopIntervalMS"]
 epd = EPD_2in9()
-l = LoggerService(_levels, _timeUrl)
+l = LoggerService(_levels, _timeUrl, ntptime)
 e = EpaperService(epd, l)
 c = EncrptionService(_cipherkey, l)
 s = SettingsService(_settings, l)
 t = TasksService(s, l, e)
 ws = WifiService(l, s)
-
-
+tim = Timer(-1)
+l.info("Main: Interval MS:" + str(_loopIntervalMS))
 app = App(l, s, ws, t, c)
-app.main()
+
+def mainLoop():
+    l.info("MainLoop: Start loop")
+    app.main()
+    l.info("MainLoop: End loop")
+
+
+tim.init(period=_loopIntervalMS, mode=Timer.ONE_SHOT, callback=mainLoop())
 

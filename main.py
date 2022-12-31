@@ -32,8 +32,13 @@ class LoggerService():
         except:
             self.error("Logger: Failed to set time")
 
-
     def getTime(self):
+        now = time.localtime()
+        dh = "{}:{}".format(now[3], now[4])
+        t =  dh
+        return t
+        
+    def getDateTime(self):
         now = time.localtime()
         dt = "{}/{}/{}".format(now[1], now[2], now[0])
         dh = "{}:{}".format(now[3], now[4])
@@ -41,27 +46,27 @@ class LoggerService():
         return t
 
     def info(self, message):
-        s = self.getTime()
+        s = self.getDateTime()
         m = "INFO:" + s  + ":" + message
         print(m)
 
     def warn(self, message):
-        s = self.getTime()
+        s = self.getDateTime()
         m = "WARN:" + ":" + message
         print(m)
 
     def error(self, message):
-        s = self.getTime()
+        s = self.getDateTime()
         m = "ERROR:" + s  + ":" + message
         print(m)
 
     def trace(self, message):
-        s = self.getTime()
+        s = self.getDateTime()
         m = "TRACE:" + s  + ":" + message
         print(m)
 
     def debug(self, message):
-        s = self.getTime()
+        s = self.getDateTime()
         m = "DEBUG:" + s  + ":" + message
         #print(m)
     
@@ -117,9 +122,10 @@ class EpaperService():
         self.epd.display(epd.buffer)
         self.epd.delay_ms(2000)
 
-    def writeDate():
+    def writeDate(self):
         dt = self.loggerService.getTime()
         self.epd.text(dt, self.x, self.y, 0x00)
+        self.loggerService.trace("ePaper:writedate:" +dt)
         self.drawnl()
         
 
@@ -176,7 +182,7 @@ class TasksService():
         header_data["token"] = self.token
         res = requests.get(self.tasksUrl, headers = header_data)
         text = res.text
-        self.loggerService.trace("Tasks:" + text)
+        self.loggerService.debug("Tasks:" + text)
         r = json.loads(text)
         for item in r:
             section = ""
@@ -209,7 +215,7 @@ class TasksService():
             m = section + "-" + content
             item["section"] = section
             item["label"] = labels
-            self.loggerService.trace("Task:" + m)
+            self.loggerService.debug("Task:" + m)
 
         return r
 
@@ -225,6 +231,9 @@ class TasksService():
 
         m = "(" + duedt + ")" + section + "-" + content + " [" + label + "]"
         return m
+
+    def displayHeader(self):
+        self.epaperService.writeDate()
 
     def displayTasks(self, items, displaySection):  
         i = 1
@@ -320,6 +329,7 @@ class App():
         wlan = self.wifiService.connect() 
         self.loggerService.setTime()
         items = self.tasksService.getTasks()
+        self.tasksService.displayHeader()
         self.tasksService.displayTasks(items, "Todo")
         self.tasksService.displayTasks(items, "Active")
         wlan = self.wifiService.disconnect()
@@ -565,27 +575,28 @@ class EPD_2in9(framebuf.FrameBuffer):
 
 
 
-_settings = config.settings
-_cipherkey = config.cipherkey
-_levels = config.levels
-_timeUrl = _settings["timeUrl"]
-_loopIntervalMS = _settings["loopIntervalMS"]
-epd = EPD_2in9()
-l = LoggerService(_levels, _timeUrl, ntptime)
-e = EpaperService(epd, l)
-c = EncrptionService(_cipherkey, l)
-s = SettingsService(_settings, l)
-t = TasksService(s, l, e)
-ws = WifiService(l, s)
-tim = Timer(-1)
-l.info("Main: Interval MS:" + str(_loopIntervalMS))
-app = App(l, s, ws, t, c)
 
 def mainLoop():
-    l.info("MainLoop: Start loop")
+    
+    _settings = config.settings
+    _cipherkey = config.cipherkey
+    _levels = config.levels
+    _timeUrl = _settings["timeUrl"]
+    _loopIntervalMS = _settings["loopIntervalMS"]
+    epd = EPD_2in9()
+    l = LoggerService(_levels, _timeUrl, ntptime)
+    e = EpaperService(epd, l)
+    c = EncrptionService(_cipherkey, l)
+    s = SettingsService(_settings, l)
+    t = TasksService(s, l, e)
+    ws = WifiService(l, s)
+    l.info("MainLoop:"  + ":Start loop")
+    l.info("Main: Interval MS:" + str(_loopIntervalMS))
+    app = App(l, s, ws, t, c)
     app.main()
-    l.info("MainLoop: End loop")
+    l.info("MainLoop:" + ":End loop")
 
-
-tim.init(period=_loopIntervalMS, mode=Timer.ONE_SHOT, callback=mainLoop())
+tim = Timer(-1)
+#_loopIntervalMS
+tim.init(period=30000, mode=Timer.PERIODIC, callback=lambda t:mainLoop())
 

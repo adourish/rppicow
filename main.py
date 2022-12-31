@@ -27,10 +27,10 @@ class LoggerService():
    
 
     def setTime(self):
-        try:
-            ntptime.settime()
-        except:
-            self.error("Logger: Failed to set time")
+
+        ntptime.settime()
+        self.trace("Logger: set time:" + self.getDateTime())
+        
 
     def getTime(self):
         now = time.localtime()
@@ -162,8 +162,8 @@ class EpaperService():
             self.nl()
             self.epd.text(r4, self.x, self.y, 0x00)
             self.loggerService.trace("ePaper:x" + ":" + str(self.x) + "-y:" + str(self.y) + "-" + r4)
-            
             self.drawnl()
+          
 
 
 class TasksService():
@@ -271,6 +271,37 @@ class TasksService():
         items = self.getTasks()
         item = self.getFirstTask(items)
 
+class StatusService():
+    def __init__(self, loggerService, settingsService):
+        self.statusLED1 = Pin(18, Pin.OUT)
+        self.statusLED2 = Pin(19, Pin.OUT)
+        self.statusLED3 = Pin(20, Pin.OUT)
+        self.statusLED4 = Pin(21, Pin.OUT)
+
+    def start(self):
+        self.statusLED1.on()
+        self.statusLED2.off()
+        self.statusLED3.off()
+        self.statusLED4.off()
+
+    def active(self):
+        self.statusLED1.off()
+        self.statusLED2.on()
+        self.statusLED3.off()
+        self.statusLED4.off()
+        
+    def done(self):
+        self.statusLED1.off()
+        self.statusLED2.off()
+        self.statusLED3.on()
+        self.statusLED4.off()
+    
+    def error(self):
+        self.statusLED1.off()
+        self.statusLED2.off()
+        self.statusLED3.off()
+        self.statusLED4.on()
+
 class WifiService():
     def __init__(self, loggerService, settingsService):
         self.loggerService = loggerService
@@ -322,27 +353,32 @@ class SettingsService():
     
 
 class App():
-    def __init__(self, loggerService, settingsService, wifiService, tasksService, encrptionService):
+    def __init__(self, loggerService, settingsService, wifiService, tasksService, encrptionService, statusService):
         self.loggerService = loggerService
         self.settingsService = settingsService
         self.wifiService = wifiService
         self.tasksService = tasksService
         self.encrptionService = encrptionService
-
-        self.taskLED = Pin(1, Pin.OUT)
+        self.statusService = statusService
+        self.statusService.start()
+        
     def main(self):
-        self.taskLED.on()
-        self.loggerService.trace("Main: Start main loop")
-        wlan = self.wifiService.connect() 
-        self.loggerService.setTime()
-        items = self.tasksService.getTasks()
-        self.tasksService.displayHeader()
-        self.tasksService.displayTasks(items, "Todo")
-        self.tasksService.displayTasks(items, "Active")
-        self.tasksService.displayFooter()
-        wlan = self.wifiService.disconnect()
-        self.loggerService.trace("Main: End main loop")
-        self.taskLED.off()
+        try:
+            self.statusService.active()
+            self.loggerService.trace("Main: Start main loop")
+            wlan = self.wifiService.connect() 
+            self.loggerService.setTime()
+            items = self.tasksService.getTasks()
+            self.tasksService.displayHeader()
+            self.tasksService.displayTasks(items, "Todo")
+            self.tasksService.displayTasks(items, "Active")
+            self.tasksService.displayFooter()
+            wlan = self.wifiService.disconnect()
+            self.loggerService.trace("Main: End main loop")
+            self.statusService.done()
+        except OSError:
+            self.statusService.error()
+            self.loggerService.error("Main: Error")
 
 ########################################################################################
 # Display resolution
@@ -599,9 +635,10 @@ if __name__=='__main__':
         s = SettingsService(_settings, l)
         t = TasksService(s, l, e)
         ws = WifiService(l, s)
+        st = StatusService(l, s)
         l.info("MainLoop:"  + ":Start loop")
         l.info("Main: Interval Seconds:" + str(_loopIntervalS))
-        app = App(l, s, ws, t, c)
+        app = App(l, s, ws, t, c, st)
         app.main()
         l.info("MainLoop:" + ":End loop")
         time.sleep(60)

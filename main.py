@@ -575,15 +575,16 @@ class EPD_2in9(framebuf.FrameBuffer):
 
 
 
-
-def mainLoop():
+epd = EPD_2in9()
+i = 0
+while i == 0:
     
     _settings = config.settings
     _cipherkey = config.cipherkey
     _levels = config.levels
     _timeUrl = _settings["timeUrl"]
-    _loopIntervalMS = _settings["loopIntervalMS"]
-    epd = EPD_2in9()
+    _loopIntervalS = _settings["loopIntervalS"]
+    
     l = LoggerService(_levels, _timeUrl, ntptime)
     e = EpaperService(epd, l)
     c = EncrptionService(_cipherkey, l)
@@ -591,12 +592,11 @@ def mainLoop():
     t = TasksService(s, l, e)
     ws = WifiService(l, s)
     l.info("MainLoop:"  + ":Start loop")
-    l.info("Main: Interval MS:" + str(_loopIntervalMS))
+    l.info("Main: Interval Seconds:" + str(_loopIntervalS))
     app = App(l, s, ws, t, c)
     app.main()
     l.info("MainLoop:" + ":End loop")
+    time.sleep(60)
 
-tim = Timer(-1)
-#_loopIntervalMS
-tim.init(period=30000, mode=Timer.PERIODIC, callback=lambda t:mainLoop())
+
 

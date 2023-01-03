@@ -5,7 +5,7 @@ Create a reference application that shows everything you need to configure a Ras
 -   I want to be able to place an ePaper device on my fridge which displays my todo and active tasks
 -   I want to trigger events using Google Assistant
 -   I want to create new tasks using Google Assistant
--   I want to create new tasks using a command line
+-   I want to make new tasks using a command line
 
 # Outcome
 
@@ -81,6 +81,7 @@ A GitHub repository with an application written in MicroPython that uses all of 
 
 ## Features (Active)
 
+-   Date service
 -   Logging service
 -   Documentation
 
@@ -88,10 +89,12 @@ A GitHub repository with an application written in MicroPython that uses all of 
 
 -   Encryption for secrets and keys
 -   Integration with Google Assistant using
+-   Performance, error handling, and memory
+    -   I need to handle transient errors and ensure that garbage collection gets called after each loop
 
 ## Settings
 
-Create a config.py file with a settings object and a cipherkey string to be imported by the main.py application
+Create a config.py file with a settings object and a cipher key string to be imported by the main.py application
 
 settings = {
 
@@ -124,7 +127,7 @@ cipherkey = b'I_am_32bytes=256bits_key_padding'
 
 -   There are a lot of challenges with using the Google Tasks APIs (or many Google APIs) to work in my MicroPython application
 -   Most of the Google APIs are now using OAuth 2.0. There is no way to get a long-live Personal Access Token (similar to Microsoft Azure or AWS)
--   You may create a Service Account, but it will not have access to your personal tasks data
+-   You may create a Service Account, but it will not have access to your tasks data
 -   You must use the gcloud CLI to generate a short-lived token
 -   You must apply to Google with a YouTube video of your project to create a short-lived token with the required Scopes for Google Tasks API
 -   After some thought, the Google Tasks application is very basic compared to other options, and I have decided to move all of my tasks to Todoist

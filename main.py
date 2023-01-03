@@ -16,30 +16,29 @@ t = Timer()
 import uos
 from ucryptolib import aes
 import config
-
+import ntptime
 
 
 
 class LoggerService():
-    def __init__(self, levels, timeUrl):
+    def __init__(self, levels, timeUrl, ntptime):
         self.levels = levels
         self.timeUrl = timeUrl
-        self.datetime = ""      
+   
 
     def setTime(self):
-        print(self.timeUrl)
-        header_data = { 
-            "content-type": 'application/json; charset=utf-8', 
-            "devicetype": '1'
-            }
-        res = requests.get(self.timeUrl, headers = header_data)
-        text = res.text
-        self.trace("Time:" + text)
-        r = json.loads(text)
-        self.datetime = r["datetime"]
-        self.info(self.datetime)
+
+        ntptime.settime()
+        self.trace("Logger: set time:" + self.getDateTime())
+        
 
     def getTime(self):
+        now = time.localtime()
+        dh = "{}:{}".format(now[3], now[4])
+        t =  dh
+        return t
+        
+    def getDateTime(self):
         now = time.localtime()
         dt = "{}/{}/{}".format(now[1], now[2], now[0])
         dh = "{}:{}".format(now[3], now[4])
@@ -47,28 +46,28 @@ class LoggerService():
         return t
 
     def info(self, message):
-        s = self.getTime()
+        s = self.getDateTime()
         m = "INFO:" + s  + ":" + message
         print(m)
 
     def warn(self, message):
-        s = self.getTime()
+        s = self.getDateTime()
         m = "WARN:" + ":" + message
         print(m)
 
     def error(self, message):
-        s = self.getTime()
-        m = "ERROR:" + ":" + message
+        s = self.getDateTime()
+        m = "ERROR:" + s  + ":" + message
         print(m)
 
     def trace(self, message):
-        s = self.getTime()
-        m = "TRACE:" + ":" + message
+        s = self.getDateTime()
+        m = "TRACE:" + s  + ":" + message
         print(m)
 
     def debug(self, message):
-        s = self.getTime()
-        m = "DEBUG:" + ":" + message
+        s = self.getDateTime()
+        m = "DEBUG:" + s  + ":" + message
         #print(m)
     
 class EncrptionService():
@@ -98,8 +97,7 @@ class EpaperService():
     def __init__(self, epd, loggerService):
         self.epd = epd
         self.loggerService = loggerService
-        self.epd.Clear(0xff)
-        self.epd.fill(0xff)
+        
         self.rowHeight = 15
         self.x = 0
         self.y = 0
@@ -110,13 +108,29 @@ class EpaperService():
         self.row = 1
         self.maxrows = 16
 
+    def clear(self):
+        self.epd.Clear(0xff)
+        self.epd.fill(0xff)
+
     def nl(self):
         self.y = self.y + self.rowHeight
         self.row = self.row +1
+
     def drawnl(self):
-        self.y = self.y + 3
+        self.y = self.y + 7
         self.epd.hline(0, self.y + 2, 140, 0x00)
         self.y = self.y + 5
+
+    def draw(self):
+        self.epd.display(epd.buffer)
+        self.epd.delay_ms(2000)
+
+    def writeDate(self):
+        dt = self.loggerService.getTime()
+        self.epd.text(dt, self.x, self.y, 0x00)
+        self.loggerService.trace("ePaper:writedate:" +dt)
+        self.drawnl()
+        
 
     def writeTask(self, duedt, content, label, row):
         if self.row <= self.maxrows:
@@ -132,7 +146,7 @@ class EpaperService():
                 r1 = content[0:self.xmax]
                 r2 = content[self.xmax1:self.xmax2]
                 r3 = content[self.xmax2:len(content)]
-            r4 = duedt + "[" + label +"]"   
+            r4 = "[" + duedt + "][" + label +"]"   
 
             self.epd.text(r1, self.x, self.y, 0x00)
             self.loggerService.trace("ePaper:x" + ":" + str(self.x) + "-y:" + str(self.y) + "-" + r1)
@@ -148,10 +162,9 @@ class EpaperService():
             self.nl()
             self.epd.text(r4, self.x, self.y, 0x00)
             self.loggerService.trace("ePaper:x" + ":" + str(self.x) + "-y:" + str(self.y) + "-" + r4)
-            
             self.drawnl()
-            self.epd.display(epd.buffer)
-            self.epd.delay_ms(2000)
+          
+
 
 class TasksService():
     def __init__(self, settingsService, loggerService, epaperService):
@@ -172,7 +185,7 @@ class TasksService():
         header_data["token"] = self.token
         res = requests.get(self.tasksUrl, headers = header_data)
         text = res.text
-        self.loggerService.trace("Tasks:" + text)
+        self.loggerService.debug("Tasks:" + text)
         r = json.loads(text)
         for item in r:
             section = ""
@@ -205,7 +218,7 @@ class TasksService():
             m = section + "-" + content
             item["section"] = section
             item["label"] = labels
-            self.loggerService.trace("Task:" + m)
+            self.loggerService.debug("Task:" + m)
 
         return r
 
@@ -221,6 +234,13 @@ class TasksService():
 
         m = "(" + duedt + ")" + section + "-" + content + " [" + label + "]"
         return m
+
+    def displayHeader(self):
+        self.epaperService.clear()
+        self.epaperService.writeDate()
+
+    def displayFooter(self):
+        self.epaperService.draw()
 
     def displayTasks(self, items, displaySection):  
         i = 1
@@ -250,6 +270,37 @@ class TasksService():
     def getTaskItem(self):
         items = self.getTasks()
         item = self.getFirstTask(items)
+
+class StatusService():
+    def __init__(self, loggerService, settingsService):
+        self.statusLED1 = Pin(18, Pin.OUT)
+        self.statusLED2 = Pin(19, Pin.OUT)
+        self.statusLED3 = Pin(20, Pin.OUT)
+        self.statusLED4 = Pin(21, Pin.OUT)
+
+    def start(self):
+        self.statusLED1.on()
+        self.statusLED2.off()
+        self.statusLED3.off()
+        self.statusLED4.off()
+
+    def active(self):
+        self.statusLED1.off()
+        self.statusLED2.on()
+        self.statusLED3.off()
+        self.statusLED4.off()
+        
+    def done(self):
+        self.statusLED1.off()
+        self.statusLED2.off()
+        self.statusLED3.on()
+        self.statusLED4.off()
+    
+    def error(self):
+        self.statusLED1.off()
+        self.statusLED2.off()
+        self.statusLED3.off()
+        self.statusLED4.on()
 
 class WifiService():
     def __init__(self, loggerService, settingsService):
@@ -302,25 +353,32 @@ class SettingsService():
     
 
 class App():
-    def __init__(self, loggerService, settingsService, wifiService, tasksService, encrptionService):
+    def __init__(self, loggerService, settingsService, wifiService, tasksService, encrptionService, statusService):
         self.loggerService = loggerService
         self.settingsService = settingsService
         self.wifiService = wifiService
         self.tasksService = tasksService
         self.encrptionService = encrptionService
-
-        self.taskLED = Pin(1, Pin.OUT)
+        self.statusService = statusService
+        self.statusService.start()
+        
     def main(self):
-        self.taskLED.on()
-        self.loggerService.trace("Main: Start main loop")
-        wlan = self.wifiService.connect() 
-        self.loggerService.setTime()
-        items = self.tasksService.getTasks()
-        self.tasksService.displayTasks(items, "Todo")
-        self.tasksService.displayTasks(items, "Active")
-        wlan = self.wifiService.disconnect()
-        self.loggerService.trace("Main: End main loop")
-        self.taskLED.off()
+        try:
+            self.statusService.active()
+            self.loggerService.trace("Main: Start main loop")
+            wlan = self.wifiService.connect() 
+            self.loggerService.setTime()
+            items = self.tasksService.getTasks()
+            self.tasksService.displayHeader()
+            self.tasksService.displayTasks(items, "Todo")
+            self.tasksService.displayTasks(items, "Active")
+            self.tasksService.displayFooter()
+            wlan = self.wifiService.disconnect()
+            self.loggerService.trace("Main: End main loop")
+            self.statusService.done()
+        except OSError:
+            self.statusService.error()
+            self.loggerService.error("Main: Error")
 
 ########################################################################################
 # Display resolution
@@ -560,20 +618,30 @@ class EPD_2in9(framebuf.FrameBuffer):
 ########################################################################################
 
 
+if __name__=='__main__':
+    epd = EPD_2in9()
+    i = 0
+    while i == 0:
+        
+        _settings = config.settings
+        _cipherkey = config.cipherkey
+        _levels = config.levels
+        _timeUrl = _settings["timeUrl"]
+        _loopIntervalS = _settings["loopIntervalS"]
+        
+        l = LoggerService(_levels, _timeUrl, ntptime)
+        e = EpaperService(epd, l)
+        c = EncrptionService(_cipherkey, l)
+        s = SettingsService(_settings, l)
+        t = TasksService(s, l, e)
+        ws = WifiService(l, s)
+        st = StatusService(l, s)
+        l.info("MainLoop:"  + ":Start loop")
+        l.info("Main: Interval Seconds:" + str(_loopIntervalS))
+        app = App(l, s, ws, t, c, st)
+        app.main()
+        l.info("MainLoop:" + ":End loop")
+        time.sleep(60)
 
-_settings = config.settings
-_cipherkey = config.cipherkey
-_levels = config.levels
-_timeUrl = _settings["timeUrl"]
-epd = EPD_2in9()
-l = LoggerService(_levels, _timeUrl)
-e = EpaperService(epd, l)
-c = EncrptionService(_cipherkey, l)
-s = SettingsService(_settings, l)
-t = TasksService(s, l, e)
-ws = WifiService(l, s)
 
-
-app = App(l, s, ws, t, c)
-app.main()
 

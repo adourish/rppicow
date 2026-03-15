@@ -1,22 +1,15 @@
-from machine import Timer
+from machine import Timer, SPI, ADC, Pin
 import time
 import gc
 import network
-from machine import SPI
 import framebuf
 import utime
 import urequests as requests
 import json
-import gc
-from machine import ADC
-from machine import Pin
 import ntptime
-import time
-t = Timer()
 import uos
 from ucryptolib import aes
 import config
-import ntptime
 
 
 
@@ -184,9 +177,12 @@ class TasksService():
             }
         header_data["token"] = self.token
         res = requests.get(self.tasksUrl, headers = header_data)
-        text = res.text
-        self.loggerService.debug("Tasks:" + text)
-        r = json.loads(text)
+        try:
+            text = res.text
+            self.loggerService.debug("Tasks:" + text)
+            r = json.loads(text)
+        finally:
+            res.close()
         for item in r:
             section = ""
             list = item["labels"]
@@ -264,7 +260,7 @@ class TasksService():
 
     def getFirstTask(self, val): 
         for value in val:
-            self.loggerService.trae("Task:" + value["content"])
+            self.loggerService.trace("Task:" + value["content"])
             return value
 
     def getTaskItem(self):
@@ -318,7 +314,6 @@ class WifiService():
             self.loggerService.info("WiFi: Already Connected")
         else:
             self.wlan.active(True)
-            self.wlan.scan()
             self.wlan.connect(ssid, pw)
         
         time.sleep(2)
@@ -620,28 +615,31 @@ class EPD_2in9(framebuf.FrameBuffer):
 
 if __name__=='__main__':
     epd = EPD_2in9()
-    i = 0
-    while i == 0:
-        
-        _settings = config.settings
-        _cipherkey = config.cipherkey
-        _levels = config.levels
-        _timeUrl = _settings["timeUrl"]
-        _loopIntervalS = _settings["loopIntervalS"]
-        
-        l = LoggerService(_levels, _timeUrl, ntptime)
-        e = EpaperService(epd, l)
-        c = EncrptionService(_cipherkey, l)
-        s = SettingsService(_settings, l)
-        t = TasksService(s, l, e)
-        ws = WifiService(l, s)
-        st = StatusService(l, s)
-        l.info("MainLoop:"  + ":Start loop")
-        l.info("Main: Interval Seconds:" + str(_loopIntervalS))
-        app = App(l, s, ws, t, c, st)
+
+    _settings = config.settings
+    _cipherkey = config.cipherkey
+    _levels = config.levels
+    _timeUrl = _settings["timeUrl"]
+    _loopIntervalS = _settings["loopIntervalS"]
+
+    l = LoggerService(_levels, _timeUrl, ntptime)
+    e = EpaperService(epd, l)
+    c = EncrptionService(_cipherkey, l)
+    s = SettingsService(_settings, l)
+    t = TasksService(s, l, e)
+    ws = WifiService(l, s)
+    st = StatusService(l, s)
+    app = App(l, s, ws, t, c, st)
+
+    l.info("Main: Interval Seconds:" + str(_loopIntervalS))
+
+    while True:
+        l.info("MainLoop: Start loop")
         app.main()
-        l.info("MainLoop:" + ":End loop")
-        time.sleep(60)
+        l.info("MainLoop: End loop")
+        gc.collect()
+        l.info("MainLoop: Free memory:" + str(gc.mem_free()))
+        time.sleep(_loopIntervalS)
 
 
 
